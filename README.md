@@ -1,6 +1,6 @@
 script to install skill to claude code and opencode
 
-run ./install-skill.sh or manually copy skill based on your tools
+run `./install-skill.sh project-documentation` or manually copy skill based on your tools
 
 how to use it?
 

@@ -53,18 +53,26 @@ echo -e "${YELLOW}Installing skill: $SKILL_NAME${NC}"
 echo ""
 
 # Install to Claude Code
-echo -n "Installing to Claude Code ($CLAUDE_SKILLS_DIR)... "
-mkdir -p "$CLAUDE_SKILLS_DIR"
-rm -rf "$CLAUDE_SKILLS_DIR/$SKILL_NAME"
-cp -r "$SKILL_SOURCE" "$CLAUDE_SKILLS_DIR/$SKILL_NAME"
-echo -e "${GREEN}Done${NC}"
+if [ -d "$HOME/.claude" ]; then
+    echo -n "Installing to Claude Code ($CLAUDE_SKILLS_DIR)... "
+    mkdir -p "$CLAUDE_SKILLS_DIR"
+    rm -rf "$CLAUDE_SKILLS_DIR/$SKILL_NAME"
+    cp -r "$SKILL_SOURCE" "$CLAUDE_SKILLS_DIR/$SKILL_NAME"
+    echo -e "${GREEN}Done${NC}"
+else
+    echo -e "${YELLOW}Claude config folder not found, skipping${NC}"
+fi
 
 # Install to OpenCode
-echo -n "Installing to OpenCode ($OPENCODE_SKILLS_DIR)... "
-mkdir -p "$OPENCODE_SKILLS_DIR"
-rm -rf "$OPENCODE_SKILLS_DIR/$SKILL_NAME"
-cp -r "$SKILL_SOURCE" "$OPENCODE_SKILLS_DIR/$SKILL_NAME"
-echo -e "${GREEN}Done${NC}"
+if [ -d "$HOME/.config/opencode" ]; then
+    echo -n "Installing to OpenCode ($OPENCODE_SKILLS_DIR)... "
+    mkdir -p "$OPENCODE_SKILLS_DIR"
+    rm -rf "$OPENCODE_SKILLS_DIR/$SKILL_NAME"
+    cp -r "$SKILL_SOURCE" "$OPENCODE_SKILLS_DIR/$SKILL_NAME"
+    echo -e "${GREEN}Done${NC}"
+else
+    echo -e "${YELLOW}OpenCode config folder not found, skipping${NC}"
+fi
 
 echo ""
 echo -e "${GREEN}Skill '$SKILL_NAME' installed successfully!${NC}"

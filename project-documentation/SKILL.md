@@ -1,6 +1,6 @@
 ---
 name: project-documentation
-version: "0.1"
+version: "0.2"
 description: "Create and maintain structured project documentation with progressive disclosure. Use when: (1) starting documentation for a new project, (2) adding documentation for a new feature, (3) updating docs after implementing changes, (4) reading project context before working on features. Triggers on phrases like 'document this', 'update the docs', 'add feature documentation', or when CLAUDE.md references this skill."
 context: fork
 agent: general-purpose
@@ -49,6 +49,20 @@ docs/
 
 ## Workflows
 
+### Save Pending Plan (NOT YET IMPLEMENTED)
+
+**Use this workflow when**: The user asks to save/archive a plan that has NOT been implemented yet. This includes plans from plan mode, approved plans waiting for implementation, or deferred plans.
+
+**CRITICAL**: This workflow ONLY writes to `docs/plans/`. Do NOT create or modify DESIGN.md, TECHNICAL.md, or any feature documentation.
+
+1. Create `docs/plans/{feature-name}/` directory if it doesn't exist (use kebab-case)
+2. Save the plan as `YYYY-MM-DD-{description}.md` using the Archived Plan template
+3. Copy the plan content exactly as-is into the Plan section
+4. Set status to `Pending` or `Deferred`
+5. **STOP HERE** — do not touch feature docs
+
+Example: User says "save this plan" or "archive this plan" → Save to `docs/plans/` ONLY.
+
 ### Initialize Documentation (new project)
 
 1. Create `docs/` directory in project root
@@ -56,7 +70,11 @@ docs/
 3. Create `docs/features/` directory
 4. Create `docs/plans/` directory
 
-### Add Feature Documentation
+### Add Feature Documentation (IMPLEMENTED FEATURES ONLY)
+
+**Use this workflow when**: A feature has been ACTUALLY IMPLEMENTED in the codebase and you need to document it.
+
+**Do NOT use for**: Plans, proposed features, or features that haven't been coded yet.
 
 1. Create `docs/features/{feature-name}/` directory (use kebab-case)
 2. Create required files using templates:
