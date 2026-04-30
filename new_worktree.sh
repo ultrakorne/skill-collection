@@ -16,10 +16,12 @@ SOURCE_WORKTREE="master"
 DEFAULT_BRANCH="master"
 # Files to copy to the new worktree.
 FILES_TO_COPY=(".mcp.json" ".env.local" "opencode.jsonc")
-# Directories to copy to speed up setup.
-# For Elixir/Phoenix, `deps` and `_build` are good candidates.
+# Directories to copy to speed up setup. Missing entries are skipped, so the
+# same list works across stacks: Elixir (`deps`, `_build`), Node (`node_modules`),
+# Go/PHP/Ruby (`vendor`). Avoid caches with embedded absolute paths
+# (e.g. Python `.venv`, Rust `target`) — those don't survive a copy.
 # These are treated as cache warmups: failures are non-fatal.
-DIRS_TO_COPY=("deps" "_build")
+DIRS_TO_COPY=("deps" "_build" "node_modules" "vendor")
 
 # `sed -i` takes different args on GNU (Linux) vs BSD (macOS). Detect once.
 if sed --version >/dev/null 2>&1; then
@@ -212,10 +214,14 @@ for file in "${FILES_TO_COPY[@]}"; do
   fi
 done
 
+# Always write PORT to .env.local so dev-server.sh picks it up, even if no
+# source .env.local existed in the source worktree.
 if [ -f "$TASK_DIR/.env.local" ]; then
-  echo "  - Appending PORT to .env.local (PORT=$TASK_PORT)..."
-  printf '\nPORT=%s\n' "$TASK_PORT" >> "$TASK_DIR/.env.local"
+  echo "  - Appending PORT to existing .env.local (PORT=$TASK_PORT)..."
+else
+  echo "  - Creating .env.local with PORT=$TASK_PORT..."
 fi
+printf '\nPORT=%s\n' "$TASK_PORT" >> "$TASK_DIR/.env.local"
 
 # Update MCP config files with the worktree-specific port
 for mcp_file in ".mcp.json" "opencode.jsonc"; do
