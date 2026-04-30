@@ -21,6 +21,13 @@ FILES_TO_COPY=(".mcp.json" ".env.local" "opencode.jsonc")
 # These are treated as cache warmups: failures are non-fatal.
 DIRS_TO_COPY=("deps" "_build")
 
+# `sed -i` takes different args on GNU (Linux) vs BSD (macOS). Detect once.
+if sed --version >/dev/null 2>&1; then
+  SED_INPLACE=(sed -i)
+else
+  SED_INPLACE=(sed -i '')
+fi
+
 # --- Init Mode ---
 # Usage: ./new_worktree.sh --init git@github.com:username/repo-name.git
 # Clones a bare repo into .bare, creates a master worktree, and configures fetch/tracking.
@@ -68,8 +75,9 @@ fi
 if [ -z "$1" ]; then
   echo "Usage: $0 <branch-name|worktree-dir>"
   echo "  $0 --init <git-repo-url>  : Initialize a new bare repo workspace."
-  echo "  <branch-name>: The name of the git branch to create or use for the new worktree."
-  echo "  <worktree-dir>: Existing worktree directory to delete (with confirmation)."
+  echo "  $0 develop                : Create/use the dedicated 'develop' worktree (dir='develop', PORT=4100)."
+  echo "  <branch-name>             : Create/use a feature worktree under the next available 'taskNN' (PORT=4000+NN)."
+  echo "  <worktree-dir>            : Existing worktree directory ('taskNN' or 'develop') to delete (with confirmation)."
   exit 1
 fi
 
@@ -77,8 +85,8 @@ TARGET_DIR=$1
 BRANCH_NAME=$1
 
 if [ -d "$TARGET_DIR" ]; then
-  if [[ ! "$TARGET_DIR" =~ ^task[0-9][0-9]+$ ]]; then
-    echo "Error: deletion is only allowed for worktree folders named like 'taskNN'."
+  if [[ ! "$TARGET_DIR" =~ ^task[0-9][0-9]+$ ]] && [ "$TARGET_DIR" != "develop" ]; then
+    echo "Error: deletion is only allowed for worktree folders named like 'taskNN' or 'develop'."
     exit 1
   fi
   echo "Directory '$TARGET_DIR' already exists."
@@ -124,21 +132,30 @@ if [ -d "$TARGET_DIR" ]; then
   exit 0
 fi
 
-# Find the next available 'taskXX' directory.
-i=1
-while true; do
-  # Formats the number with a leading zero if it's less than 10 (e.g., 01, 02, ... 10).
-  TASK_DIR=$(printf "task%02d" $i)
-  if [ ! -d "$TASK_DIR" ]; then
-    break
-  fi
-  i=$((i + 1))
-done
+# Determine target directory and port.
+# 'develop' is a special branch that gets its own dedicated worktree dir and port.
+if [ "$BRANCH_NAME" = "develop" ]; then
+  TASK_DIR="develop"
+  TASK_PORT=4100
+  echo "Using dedicated 'develop' worktree directory."
+  echo "Assigned PORT for this worktree: $TASK_PORT"
+else
+  # Find the next available 'taskXX' directory.
+  i=1
+  while true; do
+    # Formats the number with a leading zero if it's less than 10 (e.g., 01, 02, ... 10).
+    TASK_DIR=$(printf "task%02d" $i)
+    if [ ! -d "$TASK_DIR" ]; then
+      break
+    fi
+    i=$((i + 1))
+  done
 
-echo "Found next available worktree directory: $TASK_DIR"
-TASK_NUMBER="${TASK_DIR#task}"
-TASK_PORT=$((4000 + 10#$TASK_NUMBER))
-echo "Assigned PORT for this worktree: $TASK_PORT"
+  echo "Found next available worktree directory: $TASK_DIR"
+  TASK_NUMBER="${TASK_DIR#task}"
+  TASK_PORT=$((4000 + 10#$TASK_NUMBER))
+  echo "Assigned PORT for this worktree: $TASK_PORT"
+fi
 
 # Fetch latest remote refs so we know about new remote branches.
 git --git-dir="$BARE_REPO_DIR" fetch origin
@@ -204,7 +221,7 @@ fi
 for mcp_file in ".mcp.json" "opencode.jsonc"; do
   if [ -f "$TASK_DIR/$mcp_file" ]; then
     echo "  - Updating port in $mcp_file (localhost:4000 -> localhost:$TASK_PORT)..."
-    sed -i '' "s|localhost:4000|localhost:$TASK_PORT|g" "$TASK_DIR/$mcp_file"
+    "${SED_INPLACE[@]}" "s|localhost:4000|localhost:$TASK_PORT|g" "$TASK_DIR/$mcp_file"
   fi
 done
 
