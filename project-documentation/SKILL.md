@@ -3,19 +3,12 @@ name: project-documentation
 version: "0.6"
 description: "Create, maintain, and query structured project documentation with progressive disclosure. Use when: (1) starting documentation for a new project, (2) adding documentation for a new feature, (3) after implementing a feature, trigger to update or create new documentation (4) reading project context before working on features, (5) answering questions about feature behavior or functionality (e.g., 'how does X work?', 'what does Y feature do?', 'explain the Z system'). When user asks about a feature, ALWAYS check docs/INDEX.md first to see if documentation exists. Triggers on phrases like 'document this', 'update the docs', 'add feature documentation', 'how does [feature] work', 'what does [feature] do'."
 context: fork
-agent: general-purpose
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Project Documentation Skill
 
 Maintain structured, progressive-disclosure documentation that keeps context minimal while ensuring discoverability.
-
-## Background Execution
-
-This skill runs in a forked sub-agent context by default (`context: fork`), keeping the main conversation clean. The skill executes in isolation and returns only a summary of what was created/updated.
-
-To disable background execution, remove `context: fork` from the frontmatter.
 
 ## Structure Overview
 
@@ -33,15 +26,6 @@ docs/
         ├── CHANGELOG.md          # Optional: feature change history
         └── [topic].md            # Optional: sub-components (scoring.md, etc.)
 ```
-
-## Reading Pattern
-
-1. **Always start** by reading `docs/INDEX.md` and `docs/CONTEXT.md` (the project glossary — terms used across features)
-2. **When working on a feature** → read `docs/features/{feature}/INDEX.md`, and `docs/features/{feature}/CONTEXT.md` if it exists (feature-specific terms)
-3. **Based on task** → read only relevant files:
-   - Requirements/design questions → DESIGN.md
-   - Implementation work → TECHNICAL.md
-   - Specific subsystem → the relevant [topic].md
 
 ## Ubiquitous Language (CONTEXT.md)
 

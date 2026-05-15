@@ -1,19 +1,8 @@
 # Documentation Templates
 
-> **What NOT to include, anywhere:**
-> - Per-function signatures or Input/Output/Side-effects bullets — readers open the source file.
-> - Per-event / per-assign / per-attribute tables that mirror what the template or LiveView already defines.
-> - Field-by-field prose re-listing every column in a schema block.
-> - Test lists (individual test cases) or dev-tool walk-throughs in any INDEX.md.
-> - Timestamps, "last updated" dates, or author info.
->
-> **What to include in TECHNICAL.md**: architecture, what each source file is for, noteworthy / non-obvious behavior, dependencies. That's it. If a fact is visible by reading the code, don't restate it.
-
----
-
 ## Master Index
 
-`docs/INDEX.md` — The entry point for all project documentation. Keep it strictly to description + tech stack + features table + quick links. No inline test run-books, no dev-tool walk-throughs — those belong in their own docs and get linked under Quick Links.
+`docs/INDEX.md` — entry point for all project documentation.
 
 ```markdown
 # {Project Name} Documentation
@@ -45,7 +34,7 @@
 
 ## Feature Index
 
-`docs/features/{feature-name}/INDEX.md` — Table of contents for a feature folder. **Description + Documents table, nothing else.** No test lists, no dev-tool notes, no implementation details — those belong in the linked docs.
+`docs/features/{feature-name}/INDEX.md` — table of contents for a feature folder.
 
 ```markdown
 # {Feature Name}
@@ -67,7 +56,7 @@
 
 ## Project Context
 
-`docs/CONTEXT.md` — The project's ubiquitous language: precise terms, aliases to avoid, relationships between concepts. Most domain terms live here, because most features have implications at the project level.
+`docs/CONTEXT.md` — the project's ubiquitous language.
 
 ```markdown
 # {Project Name} — Context
@@ -103,23 +92,11 @@ _Avoid_: Client, buyer, account
 - "account" was used to mean both **Customer** and **User** — resolved: these are distinct concepts.
 ```
 
-### Rules
-
-- **Be opinionated.** When multiple words exist for the same concept, pick the best one and list the others as aliases to avoid.
-- **Flag conflicts explicitly.** If a term is used ambiguously, call it out in "Flagged ambiguities" with a clear resolution.
-- **Keep definitions tight.** One sentence max. Define what it IS, not what it does.
-- **Show relationships.** Use bold term names and express cardinality where obvious.
-- **Only include terms specific to this project's context.** General programming concepts (timeouts, error types, utility patterns) don't belong even if the project uses them extensively. Before adding a term, ask: is this a concept unique to this context, or a general programming concept? Only the former belongs.
-- **Group terms under subheadings** when natural clusters emerge. If all terms belong to a single cohesive area, a flat list is fine.
-- **Write an example dialogue.** A conversation between a dev and a domain expert that demonstrates how the terms interact naturally and clarifies boundaries between related concepts.
-
 ---
 
 ## Feature Context
 
-`docs/features/{feature-name}/CONTEXT.md` — **Optional.** Only create this file when a feature has terms that are *strictly local* to it — concepts that have no meaning elsewhere in the project. The vast majority of terms belong in the project-level `docs/CONTEXT.md` instead, since features usually have implications at the project level.
-
-Uses the same structure as the project-level CONTEXT.md template above:
+`docs/features/{feature-name}/CONTEXT.md` — **optional.** Only create when a feature has terms that are strictly local to it. Most terms belong in the project-level `docs/CONTEXT.md`.
 
 ```markdown
 # {Feature Name} — Context
@@ -145,13 +122,13 @@ _Avoid_: <aliases or near-synonyms not to use>
 - ...
 ```
 
-Same rules apply (opinionated, tight definitions, flag conflicts, no general programming concepts). If you find a term here also being used outside the feature, **promote it to `docs/CONTEXT.md`** and remove it here.
+If a term here is also used outside the feature, **promote it to `docs/CONTEXT.md`** and remove it here.
 
 ---
 
 ## Design Specification
 
-`docs/features/{feature-name}/DESIGN.md` — The what and why (UX-level, not implementation).
+`docs/features/{feature-name}/DESIGN.md` — the what and why (UX-level, not implementation).
 
 ```markdown
 # {Feature Name} — Design
@@ -181,9 +158,7 @@ Same rules apply (opinionated, tight definitions, flag conflicts, no general pro
 
 ## Technical Specification
 
-`docs/features/{feature-name}/TECHNICAL.md` — The how. **Point at the code, don't paraphrase it.**
-
-Target shape, in order:
+`docs/features/{feature-name}/TECHNICAL.md` — the how. Point at the code, don't paraphrase it.
 
 ```markdown
 # {Feature Name} — Technical
@@ -223,13 +198,11 @@ this section is legitimately short or absent.>
 - <internal module or external service this feature depends on — short bullet list>
 ```
 
-**If you find yourself writing "Input: … Output: … Side effects: …" for a function, stop.** That belongs in the module doc or `@spec` — not in TECHNICAL.md.
-
 ---
 
 ## Flow Diagram
 
-`docs/features/{feature-name}/FLOW.mermaid` — Visual representation of flows.
+`docs/features/{feature-name}/FLOW.mermaid` — visual representation of flows.
 
 ```mermaid
 sequenceDiagram
@@ -262,7 +235,7 @@ stateDiagram-v2
 
 ## Sub-Component Document
 
-`docs/features/{feature-name}/{topic}.md` — Isolated documentation for complex sub-systems. Use when a topic clutters TECHNICAL.md and is only relevant for specific tasks.
+`docs/features/{feature-name}/{topic}.md` — isolated documentation for complex sub-systems. Use when a topic clutters TECHNICAL.md and is only relevant for specific tasks.
 
 ```markdown
 # {Feature Name} — {Topic}
