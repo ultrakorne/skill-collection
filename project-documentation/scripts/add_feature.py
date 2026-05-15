@@ -3,11 +3,12 @@
 Add a new feature to the docs structure.
 
 Usage:
-    python add_feature.py <feature-name> [project_root]
+    python add_feature.py <feature-name> [project_root] [--with-context]
 
 Examples:
     python add_feature.py user-authentication
     python add_feature.py game-lobby /path/to/project
+    python add_feature.py scoring-system --with-context
 """
 
 import argparse
@@ -28,6 +29,34 @@ FEATURE_INDEX = '''# {title}
 |----------|---------|
 | [DESIGN.md](DESIGN.md) | Components, user flows, design decisions |
 | [TECHNICAL.md](TECHNICAL.md) | Architecture, source files, noteworthy behavior |
+'''
+
+FEATURE_INDEX_WITH_CONTEXT_ROW = (
+    "| [CONTEXT.md](CONTEXT.md) | Feature-specific terms (only here because they don't surface outside this feature) |\n"
+)
+
+CONTEXT_TEMPLATE = '''# {title} — Context
+
+<one or two sentences: what this feature-local glossary covers and why these terms didn't go into the project-level docs/CONTEXT.md.>
+
+## Language
+
+**<Term>**:
+<one-sentence definition — what it IS, not what it does>
+_Avoid_: <aliases or near-synonyms not to use>
+
+## Relationships
+
+- <express cardinality between bold terms>
+
+## Example dialogue
+
+> **Dev:** "<a question that uses the terms above>"
+> **Domain expert:** "<an answer that clarifies a boundary or rule>"
+
+## Flagged ambiguities
+
+- <call out terms used in conflicting ways, with a resolution>
 '''
 
 DESIGN_TEMPLATE = '''# {title} — Design
@@ -90,7 +119,7 @@ non-obvious, this section is legitimately short or absent.>
 - <short bullet list>
 '''
 
-def add_feature(project_root: Path, feature_name: str):
+def add_feature(project_root: Path, feature_name: str, with_context: bool = False):
     """Add a new feature documentation folder."""
     # Validate feature name
     if not re.match(r'^[a-z][a-z0-9-]*$', feature_name):
@@ -114,7 +143,10 @@ def add_feature(project_root: Path, feature_name: str):
     title = to_title(feature_name)
 
     # Create required files
-    (feature_dir / "INDEX.md").write_text(FEATURE_INDEX.format(title=title))
+    index_body = FEATURE_INDEX.format(title=title)
+    if with_context:
+        index_body += FEATURE_INDEX_WITH_CONTEXT_ROW
+    (feature_dir / "INDEX.md").write_text(index_body)
     print(f"✅ Created INDEX.md")
 
     (feature_dir / "DESIGN.md").write_text(DESIGN_TEMPLATE.format(title=title))
@@ -123,11 +155,20 @@ def add_feature(project_root: Path, feature_name: str):
     (feature_dir / "TECHNICAL.md").write_text(TECHNICAL_TEMPLATE.format(title=title))
     print(f"✅ Created TECHNICAL.md")
 
+    if with_context:
+        (feature_dir / "CONTEXT.md").write_text(CONTEXT_TEMPLATE.format(title=title))
+        print(f"✅ Created CONTEXT.md (feature-local glossary)")
+
     print(f"\n🎉 Feature '{feature_name}' documentation created!")
     print(f"\nNext steps:")
     print(f"  1. Edit the files in {feature_dir}")
-    print(f"  2. Add optional files: FLOW.mermaid or topic-specific .md files")
-    print(f"  3. Update docs/INDEX.md with an entry for this feature")
+    print(f"  2. Add this feature's domain terms to docs/CONTEXT.md (project-level glossary — default location)")
+    if with_context:
+        print(f"  3. Use docs/features/{feature_name}/CONTEXT.md ONLY for terms that are strictly local to this feature")
+    else:
+        print(f"  3. Only create a feature-level CONTEXT.md if the feature has terms with no meaning outside it (rerun with --with-context)")
+    print(f"  4. Add optional files as needed: FLOW.mermaid or topic-specific .md files")
+    print(f"  5. Update docs/INDEX.md with an entry for this feature")
 
     return 0
 
@@ -135,11 +176,16 @@ def main():
     parser = argparse.ArgumentParser(description="Add a new feature to docs")
     parser.add_argument("feature_name", help="Feature name in kebab-case (e.g., 'user-authentication')")
     parser.add_argument("project_root", nargs="?", default=".", help="Project root directory")
+    parser.add_argument(
+        "--with-context",
+        action="store_true",
+        help="Also create a feature-local CONTEXT.md. Use only when this feature has terms that don't exist anywhere else in the project.",
+    )
 
     args = parser.parse_args()
     project_root = Path(args.project_root).resolve()
 
-    return add_feature(project_root, args.feature_name)
+    return add_feature(project_root, args.feature_name, with_context=args.with_context)
 
 if __name__ == "__main__":
     exit(main())

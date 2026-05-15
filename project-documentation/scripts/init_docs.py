@@ -32,7 +32,31 @@ MASTER_INDEX_TEMPLATE = '''# {project_name} Documentation
 
 ## Quick Links
 
-*Add links as documentation grows.*
+- [CONTEXT.md](CONTEXT.md) — Ubiquitous language / project glossary
+'''
+
+CONTEXT_TEMPLATE = '''# {project_name} — Context
+
+<one or two sentences: what this glossary covers and why it exists.>
+
+## Language
+
+**<Term>**:
+<one-sentence definition — what it IS, not what it does>
+_Avoid_: <aliases or near-synonyms not to use>
+
+## Relationships
+
+- <express cardinality between bold terms, e.g. "An **Order** produces one or more **Invoices**">
+
+## Example dialogue
+
+> **Dev:** "<a question that uses the terms above>"
+> **Domain expert:** "<an answer that clarifies a boundary or rule>"
+
+## Flagged ambiguities
+
+- <call out terms used in conflicting ways, with a resolution>
 '''
 
 def init_docs(project_root: Path, project_name: str):
@@ -53,15 +77,24 @@ def init_docs(project_root: Path, project_name: str):
     else:
         print(f"⚠️  {index_path} already exists, skipping")
 
+    # Create CONTEXT.md
+    context_path = docs_dir / "CONTEXT.md"
+    if not context_path.exists():
+        context_path.write_text(CONTEXT_TEMPLATE.format(project_name=project_name))
+        print(f"✅ Created {context_path}")
+    else:
+        print(f"⚠️  {context_path} already exists, skipping")
+
     # Create .gitkeep in features to ensure it's tracked
     gitkeep = features_dir / ".gitkeep"
     if not gitkeep.exists():
         gitkeep.touch()
-    
+
     print(f"\n🎉 Documentation structure initialized!")
     print(f"\nNext steps:")
     print(f"  1. Edit docs/INDEX.md with your project description")
-    print(f"  2. Add feature documentation with: mkdir docs/features/{{feature-name}}")
+    print(f"  2. Seed docs/CONTEXT.md with core domain terms (most terms live here, not in feature-level CONTEXT.md)")
+    print(f"  3. Add feature documentation with: mkdir docs/features/{{feature-name}}")
 
 def main():
     parser = argparse.ArgumentParser(description="Initialize project documentation structure")
