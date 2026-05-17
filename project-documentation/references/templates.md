@@ -25,7 +25,6 @@
 ## Quick Links
 
 - [CONTEXT.md](CONTEXT.md) — Ubiquitous language / project glossary
-- [Getting Started](../README.md) *(if exists)*
 - [Testing](testing.md) *(if exists)*
 - [Architecture Overview](architecture/OVERVIEW.md) *(if exists)*
 ```
