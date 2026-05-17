@@ -1,7 +1,7 @@
 ---
 name: project-documentation
-version: "0.6"
-description: "Create, maintain, and query structured project documentation with progressive disclosure. Use when: (1) starting documentation for a new project, (2) adding documentation for a new feature, (3) after implementing a feature, trigger to update or create new documentation (4) reading project context before working on features, (5) answering questions about feature behavior or functionality (e.g., 'how does X work?', 'what does Y feature do?', 'explain the Z system'). When user asks about a feature, ALWAYS check docs/INDEX.md first to see if documentation exists. Triggers on phrases like 'document this', 'update the docs', 'add feature documentation', 'how does [feature] work', 'what does [feature] do'."
+version: "0.7"
+description: "Create, maintain, and query structured project documentation with progressive disclosure. Use when: (1) starting documentation for a new project, (2) adding documentation for a new feature, (3) after implementing a feature, trigger to update or create new documentation (4) reading project context before working on features, (5) answering questions about feature behavior or functionality (e.g., 'how does X work?', 'what does Y feature do?', 'explain the Z system'), (6) recording an architectural decision as an ADR. When user asks about a feature, ALWAYS check docs/INDEX.md first to see if documentation exists. Triggers on phrases like 'document this', 'update the docs', 'add feature documentation', 'how does [feature] work', 'what does [feature] do', 'record this decision', 'write an ADR'."
 context: fork
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
@@ -16,6 +16,8 @@ Maintain structured, progressive-disclosure documentation that keeps context min
 docs/
 ├── INDEX.md                      # Master TOC - ALWAYS read first
 ├── CONTEXT.md                    # Project-level ubiquitous language (glossary)
+├── adr/                          # Architectural Decision Records (created lazily)
+│   └── 0001-slug.md              # One file per decision, sequentially numbered
 └── features/
     └── feature-name/
         ├── INDEX.md              # Feature TOC - read when working on feature
@@ -34,6 +36,14 @@ docs/
 - **`docs/features/{feature}/CONTEXT.md`** (feature-level, optional): terms that are *only* meaningful inside one feature. Create this file only when a feature introduces genuinely local concepts that would clutter the project glossary.
 
 When adding a term, ask: *is this term used (or might be used) anywhere outside this feature?* If yes → project-level. If strictly internal → feature-level.
+
+## Architectural Decision Records (ADRs)
+
+ADRs capture *why* a decision was made. They live in `docs/adr/` as sequentially numbered files (`0001-slug.md`, …). The directory is created lazily when the first ADR is needed.
+
+Read [ADR_FORMAT.md](ADR_FORMAT.md) for the criteria, template, and numbering rules — load it when the user asks to write an ADR, when a decision under discussion looks like it might qualify, or before creating the first ADR in a project.
+
+Never author an ADR silently as a side effect of other work — propose it and confirm first.
 
 ## Workflows
 
@@ -60,7 +70,6 @@ When adding a term, ask: *is this term used (or might be used) anywhere outside 
    - Only if the feature introduces genuinely local concepts that don't surface anywhere else, create `docs/features/{feature-name}/CONTEXT.md` for those terms.
 4. Add optional files as needed:
    - `FLOW.mermaid` — for flows benefiting from visualization (auth, state machines, pipelines)
-   - `CHANGELOG.md` — if tracking feature-specific changes
    - `[topic].md` — for complex sub-components deserving isolation
 5. Update `docs/INDEX.md` with new feature entry (and reference `CONTEXT.md` in its Quick Links if not already there)
 
@@ -73,7 +82,12 @@ After implementing or modifying a feature:
 3. If new domain terms appeared or term meanings shifted → update `docs/CONTEXT.md` (or the feature-level one if strictly local)
 4. If new sub-components added → create `[topic].md` and update feature `INDEX.md`
 5. If flow changed → update `FLOW.mermaid`
-6. Optionally add entry to `CHANGELOG.md`
+6. If an architectural decision was made that meets the ADR criteria → propose adding an ADR (see [ADR_FORMAT.md](ADR_FORMAT.md))
+
+### Record an Architectural Decision (ADR)
+
+1. Read [ADR_FORMAT.md](ADR_FORMAT.md) — it covers the criteria, template, numbering, and optional sections
+2. Follow the rules there to create the next `docs/adr/NNNN-slug.md`
 
 ### Migrate Existing Documentation
 
