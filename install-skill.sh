@@ -11,6 +11,8 @@ NC='\033[0m' # No Color
 # Target directories
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
 OPENCODE_SKILLS_DIR="$HOME/.config/opencode/skills"
+# The agy CLI reports this as the global skills path
+AGY_SKILLS_DIR="$HOME/.gemini/antigravity-cli/skills"
 
 # Script directory (where skills are located)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,7 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 usage() {
     echo "Usage: $0 <skill-name>"
     echo ""
-    echo "Installs or updates a skill to Claude Code and OpenCode."
+    echo "Installs or updates a skill to Claude Code, OpenCode, and Agy."
     echo ""
     echo "Arguments:"
     echo "  skill-name    The folder name of the skill to install"
@@ -64,6 +66,13 @@ echo -n "Installing to OpenCode ($OPENCODE_SKILLS_DIR)... "
 mkdir -p "$OPENCODE_SKILLS_DIR"
 rm -rf "$OPENCODE_SKILLS_DIR/$SKILL_NAME"
 cp -r "$SKILL_SOURCE" "$OPENCODE_SKILLS_DIR/$SKILL_NAME"
+echo -e "${GREEN}Done${NC}"
+
+# Install to Agy (Antigravity)
+echo -n "Installing to Agy ($AGY_SKILLS_DIR)... "
+mkdir -p "$AGY_SKILLS_DIR"
+rm -rf "$AGY_SKILLS_DIR/$SKILL_NAME"
+cp -r "$SKILL_SOURCE" "$AGY_SKILLS_DIR/$SKILL_NAME"
 echo -e "${GREEN}Done${NC}"
 
 echo ""
