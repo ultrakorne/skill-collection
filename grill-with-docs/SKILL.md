@@ -37,6 +37,8 @@ docs/
 
 ## During the session
 
+Use the AskUserQuestion tool if available
+
 ### Challenge against the glossary
 
 When the user uses a term that conflicts with the existing language in `CONTEXT.md`, call it out immediately. "Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?"
