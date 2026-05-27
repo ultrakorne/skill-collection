@@ -24,7 +24,7 @@
 
 ## Quick Links
 
-- [CONTEXT.md](CONTEXT.md) — Ubiquitous language / project glossary
+- [CONTEXT.md](CONTEXT.md) — Ubiquitous language (project-level domain terms)
 - [Testing](testing.md) *(if exists)*
 - [Architecture Overview](architecture/OVERVIEW.md) *(if exists)*
 ```
@@ -55,12 +55,12 @@
 
 ## Project Context
 
-`docs/CONTEXT.md` — the project's ubiquitous language.
+`docs/CONTEXT.md` — the project's ubiquitous language. This file is named exactly `CONTEXT.md` — never `glossary.md` or any other name.
 
 ```markdown
 # {Project Name} — Context
 
-<one or two sentences: what this glossary covers and why it exists.>
+<one or two sentences: what this file covers and why it exists.>
 
 ## Language
 
@@ -100,7 +100,7 @@ _Avoid_: Client, buyer, account
 ```markdown
 # {Feature Name} — Context
 
-<one or two sentences: what this feature-local glossary covers and why these terms didn't go into the project-level CONTEXT.md.>
+<one or two sentences: what this feature-local context covers and why these terms didn't go into the project-level CONTEXT.md.>
 
 ## Language
 
@@ -157,7 +157,7 @@ If a term here is also used outside the feature, **promote it to `docs/CONTEXT.m
 
 ## Technical Specification
 
-`docs/features/{feature-name}/TECHNICAL.md` — the how. Point at the code, don't paraphrase it.
+`docs/features/{feature-name}/TECHNICAL.md` — the how. Point at the code by path, don't paraphrase or duplicate it, and never cite line numbers.
 
 ```markdown
 # {Feature Name} — Technical
@@ -176,13 +176,14 @@ enforcement if relevant.>
 | `lib/my_app_web/live/foo_live.ex` | <one-line role — e.g. "LiveView: mount + events">|
 | `assets/js/hooks/foo_hook.js` | <one-line role — e.g. "client hook: drag + optimistic UI">|
 
-*One line per file. Do not list the functions inside each file.*
+*One line per file. Reference files by path only — never by line number. Do not list the functions inside each file.*
 
 ## Data Model
 
-<include schema code blocks ONLY if the persisted shape is non-obvious or load-bearing.
-Skip field-by-field prose — the schema block is authoritative. Note unusual indexes,
-constraints, or nullable semantics if they matter.>
+<Describe the persisted shape in prose ONLY when it's non-obvious or load-bearing:
+which entities exist, how they relate, and any unusual indexes, constraints, or nullable
+semantics that matter. Do NOT paste the schema or migration source — point at the file
+that defines it. The code is authoritative; don't keep a second copy here.>
 
 ## Noteworthy Behavior
 
