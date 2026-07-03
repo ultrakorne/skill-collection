@@ -60,6 +60,7 @@ const REVIEWERS = [
     name: 'claude',
     kind: 'claude',
     model: 'opus',
+    effort: 'xhigh',
     prompt: CLAUDE_REVIEW_PROMPT,
   },
   {
@@ -96,44 +97,26 @@ const REVIEW_SCHEMA = {
   },
 }
 
+// The synthesis output is deliberately SHALLOW — two scalar string fields, no
+// nested arrays-of-objects. A deep schema (issues[]/dismissed[] each with many
+// required fields) makes the model pack a huge JSON blob into one tool call, and
+// large nested array arguments get silently dropped at the tool-call boundary —
+// leaving only the leading scalar (`summary`) and collapsing the whole plan to an
+// empty stub. Prose in a single `markdown` string sidesteps that failure mode
+// entirely, and it's what the skill renders to the user anyway.
 const PLAN_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['summary', 'issues', 'dismissed'],
+  required: ['summary', 'markdown'],
   properties: {
-    summary: { type: 'string' },
-    issues: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['id', 'title', 'severity', 'sources', 'files', 'verified', 'problem', 'fix_approach'],
-        properties: {
-          id: { type: 'integer' },
-          title: { type: 'string' },
-          severity: { type: 'string', enum: ['critical', 'high', 'medium', 'low', 'nit'] },
-          sources: { type: 'array', items: { type: 'string' }, description: 'Which reviewers flagged this (e.g. claude, codex)' },
-          files: { type: 'array', items: { type: 'string' }, description: 'file:line references' },
-          verified: { type: 'boolean', description: 'Confirmed real by reading the actual code' },
-          verification_note: { type: 'string' },
-          problem: { type: 'string' },
-          fix_approach: { type: 'string' },
-        },
-      },
+    summary: {
+      type: 'string',
+      description: 'One or two sentences: the overall verdict and how many verified issues there are.',
     },
-    dismissed: {
-      type: 'array',
-      description: 'Findings discarded as false positives / not real, with why',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['title', 'reason'],
-        properties: {
-          title: { type: 'string' },
-          source: { type: 'string' },
-          reason: { type: 'string' },
-        },
-      },
+    markdown: {
+      type: 'string',
+      description:
+        'The FULL issue-by-issue fix plan as GitHub-flavored markdown, ready to show the user (headings per issue with severity + title, the reviewers that flagged each, file:line refs, the problem, a "Fix approach" line, and a Dismissed section). Must not be empty.',
     },
   },
 }
@@ -165,6 +148,7 @@ const reviews = await parallel(
       label: `review:${r.name}`,
       phase: 'Review',
       model: r.model || 'opus',
+      effort: r.effort || 'xhigh',
       schema: REVIEW_SCHEMA,
     })
     return { name: r.name, kind: 'claude', output: res }
@@ -189,22 +173,81 @@ const synthesisPrompt = `You are the lead reviewer. Below are ${ok.length} INDEP
 WHAT WAS REVIEWED: ${INSTRUCTION || DEFAULT_SCOPE}
 
 Your job — do NOT fix anything, only produce a plan:
-1. DEDUP: merge findings that describe the same underlying issue (even if worded differently). Record which reviewers flagged each (the "sources").
-2. VERIFY: for every candidate issue, open the actual code with Read/Grep/Bash (gather the same diff the instruction above describes) and confirm it is genuinely a problem in the current changes. Set verified=true only when you have confirmed it against the real code; add a one-line verification_note saying what you checked.
-3. DISMISS false positives: if a finding does not hold up against the code, put it in "dismissed" with the reason — do not silently drop it.
-4. For each REAL issue write: a clear problem statement and a concrete fix_approach (how you would fix it — file/function and the change), ordered by severity (critical first).
+1. DEDUP: merge findings that describe the same underlying issue (even if worded differently). Note which reviewers flagged each.
+2. VERIFY: for every candidate issue, open the actual code with Read/Grep/Bash (gather the same diff the instruction above describes) and confirm it is genuinely a problem in the current changes. Keep an issue only when you have confirmed it against the real code; say what you checked. If a reviewer clearly reviewed the WRONG scope (e.g. a different branch than the instruction names), dismiss its findings and say so.
+3. DISMISS false positives: if a finding does not hold up against the code, list it under a "Dismissed" section with the reason — do not silently drop it.
+4. For each REAL issue give: severity, file:line, a clear problem statement, and a concrete fix approach (file/function and the change). Order issues by severity (critical first).
 
-Be concise and concrete. Reference file:line. Prefer fewer, verified, high-signal issues over a long unverified list.
+Return your result as the structured output with exactly two fields:
+  - "summary": one or two sentences — the overall verdict and how many verified issues there are.
+  - "markdown": the FULL plan as GitHub-flavored markdown, ready to show the user. Use a "## " heading per issue (numbered, with severity + title), and under each: the reviewers that flagged it, the file:line references, the problem, and a "**Fix approach:**" line. End with a "## Dismissed" section (title + reason each) when any findings were dismissed. If the code is genuinely clean, say so plainly in the markdown.
 
-${reviewBlocks}
+Be concise and concrete. Reference file:line. Prefer fewer, verified, high-signal issues over a long unverified list. Put ALL substantive content in "markdown" — never leave it empty.
 
-Return the structured plan.`
+${reviewBlocks}`
 
-const plan = await agent(synthesisPrompt, {
+// A plan is degenerate when the model failed to deliver real content — null (agent
+// died), or a blank/stub markdown body. Legitimate "code is clean" verdicts still
+// carry a real markdown explanation, so they are NOT degenerate.
+function isDegeneratePlan(p) {
+  if (!p || typeof p !== 'object') return true
+  const md = typeof p.markdown === 'string' ? p.markdown.trim() : ''
+  return md.length < 40
+}
+
+// Build a fallback plan straight from the raw reviewer outputs so that a broken
+// synthesis step never silently discards findings the reviewers actually reported.
+function rawFallbackMarkdown(reviews) {
+  return reviews
+    .map((r) => {
+      if (r.kind === 'bash') {
+        return `## Reviewer: ${r.name} (raw)\n\n\`\`\`\n${String(r.output || '').trim()}\n\`\`\``
+      }
+      const out = r.output || {}
+      const findings = Array.isArray(out.findings) ? out.findings : []
+      const body = findings.length
+        ? findings
+            .map((f, i) => {
+              const loc = f.file ? `\`${f.file}${f.line ? ':' + f.line : ''}\`` : ''
+              const fix = f.suggested_fix ? `\n\n**Suggested fix:** ${f.suggested_fix}` : ''
+              return `### ${i + 1}. [${f.severity}] ${f.title}\n${loc ? loc + '\n\n' : ''}${f.detail}${fix}`
+            })
+            .join('\n\n')
+        : '_No findings reported._'
+      const notes = out.notes ? `${out.notes}\n\n` : ''
+      return `## Reviewer: ${r.name}\n\n${notes}${body}`
+    })
+    .join('\n\n---\n\n')
+}
+
+let plan = await agent(synthesisPrompt, {
   label: 'synthesize:opus',
   phase: 'Synthesize',
   model: 'opus',
+  effort: 'xhigh',
   schema: PLAN_SCHEMA,
 })
 
-return { reviewers: ok.map((r) => r.name), plan }
+// Guard: if synthesis came back empty/degenerate, retry once — most such failures
+// (a dropped tool-call argument, a transient error) clear on a second attempt.
+if (isDegeneratePlan(plan)) {
+  log('Synthesis returned an empty/degenerate plan — retrying once.')
+  plan = await agent(
+    `${synthesisPrompt}\n\nNOTE: a previous attempt returned an empty result. Put the entire plan in the "markdown" field as plain GitHub-flavored markdown text; do not leave it blank.`,
+    { label: 'synthesize:opus:retry', phase: 'Synthesize', model: 'opus', effort: 'xhigh', schema: PLAN_SCHEMA },
+  )
+}
+
+// Fallback: still degenerate → surface the raw reviewer findings verbatim so
+// nothing is lost. The caller/skill renders plan.markdown either way.
+let synthesisFailed = false
+if (isDegeneratePlan(plan)) {
+  synthesisFailed = true
+  log('Synthesis still empty after retry — falling back to raw reviewer findings so nothing is lost.')
+  plan = {
+    summary: `Synthesis failed to produce a consolidated plan; showing the ${ok.length} raw reviewer outputs verbatim (not deduped or verified).`,
+    markdown: `> ⚠️ The synthesis step failed to return a plan, so these are the **raw, unverified** reviewer findings. Dedup/verify them by hand.\n\n${rawFallbackMarkdown(ok)}`,
+  }
+}
+
+return { reviewers: ok.map((r) => r.name), synthesisFailed, plan }

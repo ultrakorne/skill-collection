@@ -58,15 +58,18 @@ git range or an object.
    ```
    It fans out every reviewer in `REVIEWERS` in parallel with fresh context, then has Opus
    dedup the findings, verify each against the real code, and write an issue-by-issue fix
-   plan. Returns `{ reviewers, plan }`.
+   plan. Returns `{ reviewers, synthesisFailed, plan }`, where `plan` is
+   `{ summary, markdown }` — `markdown` is the full issue-by-issue plan (already ordered
+   critical-first, with a Dismissed section) as ready-to-show GitHub-flavored markdown.
 
-3. **Render the returned plan** as markdown for the user — do not just dump JSON:
+3. **Render the returned plan** for the user — do not dump JSON:
    - Lead with `plan.summary` and which reviewers ran.
-   - For each issue in `plan.issues` (already ordered critical-first): a heading with
-     numbering + severity + title, the `sources` that flagged it, the `files` (file:line),
-     the `problem`, and the **Fix approach**.
-   - If `plan.dismissed` is non-empty, do not surface.
-     each title + reason.
+   - Then render `plan.markdown` as-is — it is already a formatted, severity-ordered,
+     issue-by-issue plan (with Fix approach lines and a Dismissed section). Don't re-derive
+     it; you may lightly reformat headings to fit the surrounding reply.
+   - If `synthesisFailed` is `true`, the synthesis step could not produce a consolidated
+     plan and `plan.markdown` holds the **raw, unverified** reviewer outputs. Say so plainly,
+     and offer to re-run the workflow rather than treating the findings as verified.
    - This is a plan only — do **NOT** start applying fixes unless the user asks.
 
 ## Extending
