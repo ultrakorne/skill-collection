@@ -3,12 +3,11 @@ name: multi-review
 description: >-
   Review code changes with several independent, fresh-context reviewers 
   running in parallel, then synthesize their findings into one verified, deduplicated,
-  severity-ordered fix plan with Opus. 
-disable-model-invocation: true
+  severity-ordered fix plan with Opus. Trigger when calling for a "multi review"
 allowed-tools: Bash(git:*), Workflow, Read, Grep
 ---
 
-# Multi-Review
+# multi-review
 
 Run a multi-reviewer pass over a set of changes and produce a single verified fix plan.
 
