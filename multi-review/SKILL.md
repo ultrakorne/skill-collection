@@ -52,9 +52,11 @@ git range or an object.
    before launching.)
 
 2. **Run the workflow.** Pass the instruction as `args` only when one was given:
+
    ```
    Workflow({ scriptPath: "~/.claude/skills/multi-review/scripts/multi-review.mjs", args: "<instruction or omit>" })
    ```
+
    It fans out every reviewer in `REVIEWERS` in parallel with fresh context, then has Opus
    dedup the findings, verify each against the real code, and write an issue-by-issue fix
    plan. Returns `{ reviewers, synthesisFailed, plan }`, where `plan` is

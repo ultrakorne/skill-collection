@@ -13,8 +13,10 @@
 #                             that needs no provisioning just omits it.
 #   <repo>/.herdr/sprawl.env  KEY=VALUE dotenv sourced into both panes (SPRAWL_AGENT_SECRET).
 #
-# Install:
-#   ln -sfn ~/Developer/ai-skills/herdr-kit/new-worktree.sh ~/.local/bin/wt
+# Install — from this directory, wherever you cloned it. $PWD keeps it machine-agnostic
+# and absolute; a relative source resolves against ~/.local/bin, not your cwd, and lands
+# dangling:
+#   ln -sfn "$PWD/new-worktree.sh" ~/.local/bin/wt
 #
 #   wt [name] [prompt...] [--agent CMD] [--base REF] [--name NAME]
 #     name       branch + worktree + space label (e.g. shop-ui). OPTIONAL — see below.

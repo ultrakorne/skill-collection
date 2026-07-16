@@ -6,11 +6,17 @@ The generic half of the Herdr worktree cockpit — one launcher, shared by every
 | --- | --- |
 | `new-worktree.sh` | start a task: worktree + space + agent. Installed as `wt`. |
 
-Install (already done on this machine):
+Install — run it from this directory, wherever you cloned the repo:
 
 ```sh
-ln -sfn ~/Developer/ai-skills/herdr-kit/new-worktree.sh ~/.local/bin/wt
+ln -sfn "$PWD/new-worktree.sh" ~/.local/bin/wt
 ```
+
+`$PWD` is what makes this portable *and* correct. Don't hardcode a checkout path (it
+differs per machine), and don't pass a relative source — `ln` stores the source string
+verbatim, and the kernel resolves a relative one against `~/.local/bin/`, not your cwd,
+so `ln -sfn new-worktree.sh ~/.local/bin/wt` silently creates a dangling link. Check
+with `readlink -f ~/.local/bin/wt`; it should print a path that exists.
 
 ## The split
 
