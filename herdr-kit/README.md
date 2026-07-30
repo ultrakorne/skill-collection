@@ -26,7 +26,7 @@ finds the repo from your cwd and calls into two files that live in that repo:
 | in the repo | what | required |
 | --- | --- | --- |
 | `.herdr/setup.sh` | provisioning, run with CWD = the new worktree | no — skipped with a warning if absent |
-| `.herdr/sprawl.env` | `KEY=VALUE` dotenv sourced into both panes (`SPRAWL_AGENT_SECRET`) | no — sourced only if present |
+| `.herdr/sprawl.env` | `KEY=VALUE` dotenv sourced into both panes (`SPRAWL_AGENT_SECRET`) | no — and its absence means no sprawl pane at all |
 
 **`setup.sh` owns its own "already provisioned?" early-exit.** The launcher always
 calls it. This is the whole trick that keeps the launcher generic: the sentinel is the
@@ -38,8 +38,14 @@ at the top of `setup.sh` and the launcher needs no knobs at all:
 [ -d node_modules ] && { echo "already provisioned — skipping setup."; exit 0; }
 ```
 
-Onboarding a new repo is therefore: write `.herdr/setup.sh` (executable), drop in a
-`.herdr/sprawl.env`, done. Nothing to copy, nothing to keep in sync.
+Onboarding a new repo is therefore: write `.herdr/setup.sh` (executable), and drop in a
+`.herdr/sprawl.env` if the repo tracks its work in sprawl. Nothing to copy, nothing to
+keep in sync.
+
+**`sprawl.env` is the opt-in switch for the sprawl pane.** With it, the space splits
+top/bottom — agent on top, sprawl TUI in the bottom third. Without it, the space is
+left unsplit and the agent gets the whole thing. Delete the file from a repo that
+doesn't use sprawl and its worktrees stop getting the pane.
 
 ## Usage
 
@@ -92,6 +98,27 @@ what matter.
 
 The heuristic only misfires on an **unquoted** prompt whose first word is a bare token —
 `wt do task x` reads `do` as the name. Quote the prompt, or use `--name`, or `--`.
+
+### Prompts
+
+Prompts reach the agent **through a file**, not by being typed into the pane. Each run
+writes `<git-common-dir>/wt-prompts/<name>.txt` and sends the pane one short line:
+`claude "$(cat …)"`.
+
+This is not cosmetic. A pane's tty sits in canonical mode until its shell finishes
+starting, and canonical mode holds at most 1024 bytes on macOS — past that the kernel
+drops the rest, trailing newline included, and the command stays half-typed at the
+prompt, unsubmitted, forever. Long prompts hit this routinely, and the old `%q` quoting
+made it worse: under the C locale one em-dash costs 12 ASCII bytes instead of 3. About
+100 bytes now cross the wire no matter how long the prompt is.
+
+The launcher then polls the pane until its foreground process is no longer the shell,
+retries the send once, and warns on stderr if the agent never came up — the old failure
+was silent, which is what made it expensive.
+
+The files are tiny, sit outside every working tree (so they can't be staged or turn up
+as untracked), and are overwritten per name. They double as a record of what each
+worktree was launched with, and `wt` prints the path when it finishes.
 
 ### Flags
 

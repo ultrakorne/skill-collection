@@ -12,6 +12,8 @@
 #                             provisioned means for that stack. Optional: a repo
 #                             that needs no provisioning just omits it.
 #   <repo>/.herdr/sprawl.env  KEY=VALUE dotenv sourced into both panes (SPRAWL_AGENT_SECRET).
+#                             Its presence is also what OPTS THE REPO IN to the sprawl
+#                             pane: no sprawl.env, no split, agent gets the whole space.
 #
 # Install — from this directory, wherever you cloned it. $PWD keeps it machine-agnostic
 # and absolute; a relative source resolves against ~/.local/bin, not your cwd, and lands
@@ -55,12 +57,28 @@
 # (`wt do task x` reads `do` as the name). Escape hatches: quote the prompt, pass
 # `--name`, or use `--` to force everything after it into the prompt (`wt -- do task x`).
 #
+# PROMPTS GO THROUGH A FILE, NOT THE KEYBOARD. The prompt is written to
+# <git-common-dir>/wt-prompts/<name>.txt and the pane is only ever sent the short line
+#   claude "$(cat /abs/path/to/that/file)"
+# The prompt used to be typed into the pane inline, %q-quoted. That breaks on long
+# prompts: a pane's tty in canonical mode (which it is until the shell finishes
+# starting and hands over to its line editor) holds at most MAX_CANON — 1024 bytes on
+# Darwin — and silently DISCARDS the rest, trailing newline included. The command then
+# sits half-typed at the prompt, unsubmitted, forever. %q made it far worse: under the
+# C locale every byte of a non-ASCII char becomes a 4-char octal escape, so one em-dash
+# costs 12 bytes instead of 3 and a few paragraphs of prose blow past 1024 easily.
+# Sending ~100 bytes regardless of prompt size takes the whole class of failure off the
+# table. The files are tiny, live outside every working tree, and are overwritten per
+# name — they double as a record of what each worktree was launched with.
+#
 # Each call makes ONE space = ONE agent = ONE worktree — Herdr's native grain, so
 # each agent gets its own sidebar row + rolled-up state. Run it once per agent.
 #
-# The space is split top/bottom: the agent runs in the top pane, and a bottom
-# pane (~1/3 height, labelled "sprawl") runs the sprawl TUI. Both panes source
-# .herdr/sprawl.env first so SPRAWL_AGENT_SECRET is exported for sprawl.
+# In a repo that has .herdr/sprawl.env, the space is split top/bottom: the agent
+# runs in the top pane, and a bottom pane (~1/3 height, labelled "sprawl") runs the
+# sprawl TUI. Both panes source that file first so SPRAWL_AGENT_SECRET is exported
+# for sprawl. Without the file the repo doesn't use sprawl, so the space is left
+# unsplit and the agent gets all of it.
 set -euo pipefail
 
 USAGE="usage: wt [name] [prompt...] [--agent CMD] [--base REF] [--name NAME]"
@@ -140,14 +158,21 @@ fi
 
 WT="$MAIN/.claude/worktrees/$NAME"
 
-# Snippet each pane runs before its command: export sprawl's env (dotenv file,
-# plain KEY=VALUE) so sprawl authenticates. Absolute path → works before the
-# file is committed and regardless of the pane's cwd. `set -a` makes the
-# sourced assignments exported even though the file has no `export` keyword.
-# The -f test keeps this a no-op in a repo that has no sprawl.env yet, instead
-# of leaving an error at the top of a fresh pane.
+# .herdr/sprawl.env is the repo's opt-in to sprawl, and it does two jobs. Its
+# CONTENTS become a prefix each pane runs before its command, exporting sprawl's
+# env (dotenv file, plain KEY=VALUE) so sprawl authenticates — absolute path, so
+# it works before the file is committed and regardless of the pane's cwd, and
+# `set -a` exports the assignments even though the file has no `export` keyword.
+# Its EXISTENCE decides whether there's a sprawl pane at all (step 4). A repo
+# without it gets no split and a bare command line, not a dead pane running a
+# tool it doesn't use.
 ENVFILE="$MAIN/.herdr/sprawl.env"
-SRC="set -a; [ -f \"$ENVFILE\" ] && . \"$ENVFILE\"; set +a"
+USE_SPRAWL=0
+SRC=""
+if [ -f "$ENVFILE" ]; then
+  USE_SPRAWL=1
+  SRC="set -a; . \"$ENVFILE\"; set +a; "
+fi
 
 # Focus policy: an interactive (no-prompt) launch means you want to jump INTO the
 # new space and start typing, so focus it. But when a prompt is passed the agent
@@ -198,16 +223,27 @@ absolute paths. It stays at .claude/worktrees/$NAME, which bothers nobody.
 ---"
 fi
 
-# Build the agent launch command, quoting the prompt safely for the pane's shell.
-# shquote renders a multi-line prompt as a single-line $'...\n...' token, so the pane's
-# shell can't run it as separate commands. All three agents open interactively with an
-# initial prompt (never the headless path): claude/codex take it as a positional arg,
-# opencode via --prompt.
+# Build the agent launch command. The prompt itself goes to a file and the pane gets a
+# short $(cat …) line instead — see the note at the top on why it can't be typed inline.
+# All three agents open interactively with an initial prompt (never the headless path):
+# claude/codex take it as a positional arg, opencode via --prompt.
 AGENT_CMD="$AGENT"
 if [ -n "$PROMPT" ]; then
+  # The git common dir is shared by every worktree and is never itself a working tree,
+  # so a file dropped here can't be staged, can't show up as untracked, and can't
+  # collide with the agent's own edits. A name may contain '/', hence the mkdir -p.
+  GITDIR="$(cd "$MAIN" && git rev-parse --git-common-dir)"
+  case "$GITDIR" in /*) ;; *) GITDIR="$MAIN/$GITDIR" ;; esac
+  PROMPT_FILE="$GITDIR/wt-prompts/$NAME.txt"
+  mkdir -p "$(dirname "$PROMPT_FILE")"
+  printf '%s\n' "$PROMPT" > "$PROMPT_FILE"
+
+  # Only the PATH goes through shquote now, and $(cat …) stays unexpanded here so the
+  # pane's shell is the one that reads the file.
+  READ_PROMPT="\"\$(cat $(shquote "$PROMPT_FILE"))\""
   case "$AGENT" in
-    opencode*) AGENT_CMD="$AGENT --prompt $(shquote "$PROMPT")" ;;
-    *)         AGENT_CMD="$AGENT $(shquote "$PROMPT")" ;;  # claude, codex: positional prompt
+    opencode*) AGENT_CMD="$AGENT --prompt $READ_PROMPT" ;;
+    *)         AGENT_CMD="$AGENT $READ_PROMPT" ;;  # claude, codex: positional prompt
   esac
 fi
 
@@ -224,26 +260,59 @@ else
   echo "wt: no $SETUP — skipping provisioning." >&2
 fi
 
-# 4) Split the space top/bottom. --ratio is the fraction the ORIGINAL (top) pane
-#    keeps, so 0.67 leaves the bottom pane ~1/3. --no-focus keeps focus on the
-#    agent pane. Take the new (bottom) pane id from the split response.
-SPLIT="$(herdr pane split "$PANE" --direction down --ratio 0.67 --cwd "$WT" --no-focus)"
-SPRAWL_PANE="$(printf '%s' "$SPLIT" | jq -r '.result.pane.pane_id')"
-[ -n "$SPRAWL_PANE" ] && [ "$SPRAWL_PANE" != "null" ] || { echo "could not resolve sprawl pane id from:" >&2; echo "$SPLIT" >&2; exit 1; }
-
+# 4) Split the space top/bottom, but only in a repo that uses sprawl. --ratio is
+#    the fraction the ORIGINAL (top) pane keeps, so 0.67 leaves the bottom pane
+#    ~1/3. --no-focus keeps focus on the agent pane. Take the new (bottom) pane id
+#    from the split response.
 # 5) Label the bottom pane's border and run sprawl in it (interactive TUI).
 #    These herdr calls echo a JSON pane_info blob we don't need — mute it.
-herdr pane rename "$SPRAWL_PANE" sprawl >/dev/null
-herdr pane send-text "$SPRAWL_PANE" "$SRC; sprawl"$'\n' >/dev/null
+if [ "$USE_SPRAWL" -eq 1 ]; then
+  SPLIT="$(herdr pane split "$PANE" --direction down --ratio 0.67 --cwd "$WT" --no-focus)"
+  SPRAWL_PANE="$(printf '%s' "$SPLIT" | jq -r '.result.pane.pane_id')"
+  [ -n "$SPRAWL_PANE" ] && [ "$SPRAWL_PANE" != "null" ] || { echo "could not resolve sprawl pane id from:" >&2; echo "$SPLIT" >&2; exit 1; }
+
+  herdr pane rename "$SPRAWL_PANE" sprawl >/dev/null
+  herdr pane send-text "$SPRAWL_PANE" "${SRC}sprawl"$'\n' >/dev/null
+fi
+
+# A pane's foreground process is its login shell while it sits at a prompt, and becomes
+# the agent the moment one launches — so "a foreground pid that isn't the shell" tells us
+# the send actually took. Worth checking: the failure mode this replaced was silent, a
+# half-typed command line nobody noticed until the agent was hours late.
+agent_is_up() {
+  local info sp
+  info="$(herdr pane process-info --pane "$1" 2>/dev/null)" || return 1
+  sp="$(printf '%s' "$info" | jq -r '.result.process_info.shell_pid // -1')"
+  printf '%s' "$info" | jq -e --argjson sp "$sp" \
+    '[.result.process_info.foreground_processes[]?.pid] | map(. != $sp) | any' >/dev/null 2>&1
+}
+
+wait_agent_up() {   # pane, seconds
+  local deadline=$(( SECONDS + $2 ))
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    agent_is_up "$1" && return 0
+    sleep 1
+  done
+  return 1
+}
 
 # 6) Launch the agent inside the top pane so its SessionStart hook registers with
 #    Herdr → tracked from t=0. Works for claude, codex AND opencode. A trailing
 #    prompt (if any) is already baked into $AGENT_CMD, so the agent opens
 #    interactively and starts working on it.
-herdr pane send-text "$PANE" "$SRC; $AGENT_CMD"$'\n' >/dev/null
+herdr pane send-text "$PANE" "${SRC}${AGENT_CMD}"$'\n' >/dev/null
+
+if ! wait_agent_up "$PANE" 25; then
+  # Retry once, after a Ctrl-U to kill whatever partial line might be sitting there —
+  # appending to a half-typed command would just run garbage.
+  herdr pane send-text "$PANE" $'\025' >/dev/null 2>&1 || true
+  herdr pane send-text "$PANE" "${SRC}${AGENT_CMD}"$'\n' >/dev/null
+  wait_agent_up "$PANE" 25 \
+    || echo "wt: $AGENT never started in pane $PANE — check the pane. Prompt kept at ${PROMPT_FILE:-<none>}" >&2
+fi
 
 if [ "$AUTO_NAME" -eq 1 ]; then
   echo "✓ $NAME — $AGENT ready (unnamed: agent will rename branch + space $WS once the task is clear)"
 else
-  echo "✓ $NAME — $AGENT ready${PROMPT:+ (prompt: $PROMPT)}"
+  echo "✓ $NAME — $AGENT ready${PROMPT_FILE:+ (prompt: $PROMPT_FILE)}"
 fi
