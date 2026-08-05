@@ -11,9 +11,11 @@
 #                             "already provisioned?" early-exit — only it knows what
 #                             provisioned means for that stack. Optional: a repo
 #                             that needs no provisioning just omits it.
-#   <repo>/.herdr/sprawl.env  KEY=VALUE dotenv sourced into both panes (SPRAWL_AGENT_SECRET).
-#                             Its presence is also what OPTS THE REPO IN to the sprawl
-#                             pane: no sprawl.env, no split, agent gets the whole space.
+#   <repo>/.herdr/env         KEY=VALUE dotenv sourced into both panes (SPRAWL_AGENT_SECRET
+#                             and/or SPRAWL_PROJECT_KEY). Its presence is also what OPTS
+#                             THE REPO IN to the sprawl pane: no env file, no split, agent
+#                             gets the whole space. The older name .herdr/sprawl.env is
+#                             still accepted, so repos can be migrated one at a time.
 #
 # Install — from this directory, wherever you cloned it. $PWD keeps it machine-agnostic
 # and absolute; a relative source resolves against ~/.local/bin, not your cwd, and lands
@@ -74,11 +76,11 @@
 # Each call makes ONE space = ONE agent = ONE worktree — Herdr's native grain, so
 # each agent gets its own sidebar row + rolled-up state. Run it once per agent.
 #
-# In a repo that has .herdr/sprawl.env, the space is split top/bottom: the agent
-# runs in the top pane, and a bottom pane (~1/3 height, labelled "sprawl") runs the
-# sprawl TUI. Both panes source that file first so SPRAWL_AGENT_SECRET is exported
-# for sprawl. Without the file the repo doesn't use sprawl, so the space is left
-# unsplit and the agent gets all of it.
+# In a repo that has .herdr/env, the space is split top/bottom: the agent runs in
+# the top pane, and a bottom pane (~1/3 height, labelled "sprawl") runs the sprawl
+# TUI. Both panes source that file first so sprawl's env is exported for it.
+# Without the file the repo doesn't use sprawl, so the space is left unsplit and
+# the agent gets all of it.
 set -euo pipefail
 
 USAGE="usage: wt [name] [prompt...] [--agent CMD] [--base REF] [--name NAME]"
@@ -158,18 +160,27 @@ fi
 
 WT="$MAIN/.claude/worktrees/$NAME"
 
-# .herdr/sprawl.env is the repo's opt-in to sprawl, and it does two jobs. Its
-# CONTENTS become a prefix each pane runs before its command, exporting sprawl's
-# env (dotenv file, plain KEY=VALUE) so sprawl authenticates — absolute path, so
-# it works before the file is committed and regardless of the pane's cwd, and
+# .herdr/env is the repo's opt-in to sprawl, and it does two jobs. Its CONTENTS
+# become a prefix each pane runs before its command, exporting sprawl's env
+# (dotenv file, plain KEY=VALUE) so sprawl authenticates — absolute path, so it
+# works before the file is committed and regardless of the pane's cwd, and
 # `set -a` exports the assignments even though the file has no `export` keyword.
 # Its EXISTENCE decides whether there's a sprawl pane at all (step 4). A repo
 # without it gets no split and a bare command line, not a dead pane running a
 # tool it doesn't use.
-ENVFILE="$MAIN/.herdr/sprawl.env"
+#
+# Two names are accepted: .herdr/env (current) and .herdr/sprawl.env (what this
+# script originally looked for). Repos carry one or the other, so checking both
+# means renaming a repo's file never silently costs it the pane — the failure
+# mode is invisible from here: no split, no error, and the agent pane quietly
+# loses sprawl's env too.
+ENVFILE=""
+for cand in "$MAIN/.herdr/env" "$MAIN/.herdr/sprawl.env"; do
+  [ -f "$cand" ] && { ENVFILE="$cand"; break; }
+done
 USE_SPRAWL=0
 SRC=""
-if [ -f "$ENVFILE" ]; then
+if [ -n "$ENVFILE" ]; then
   USE_SPRAWL=1
   SRC="set -a; . \"$ENVFILE\"; set +a; "
 fi
@@ -264,7 +275,10 @@ fi
 #    the fraction the ORIGINAL (top) pane keeps, so 0.67 leaves the bottom pane
 #    ~1/3. --no-focus keeps focus on the agent pane. Take the new (bottom) pane id
 #    from the split response.
-# 5) Label the bottom pane's border and run sprawl in it (interactive TUI).
+# 5) Label the bottom pane's border and run the sprawl TUI in it. Bare `sprawl`
+#    also opens the TUI when it's attached to a terminal (it falls back to printing
+#    usage when stdout isn't one) — the explicit subcommand just pins it, so the
+#    pane can't end up showing help text if that default ever changes.
 #    These herdr calls echo a JSON pane_info blob we don't need — mute it.
 if [ "$USE_SPRAWL" -eq 1 ]; then
   SPLIT="$(herdr pane split "$PANE" --direction down --ratio 0.67 --cwd "$WT" --no-focus)"
@@ -272,7 +286,7 @@ if [ "$USE_SPRAWL" -eq 1 ]; then
   [ -n "$SPRAWL_PANE" ] && [ "$SPRAWL_PANE" != "null" ] || { echo "could not resolve sprawl pane id from:" >&2; echo "$SPLIT" >&2; exit 1; }
 
   herdr pane rename "$SPRAWL_PANE" sprawl >/dev/null
-  herdr pane send-text "$SPRAWL_PANE" "${SRC}sprawl"$'\n' >/dev/null
+  herdr pane send-text "$SPRAWL_PANE" "${SRC}sprawl tui"$'\n' >/dev/null
 fi
 
 # A pane's foreground process is its login shell while it sits at a prompt, and becomes

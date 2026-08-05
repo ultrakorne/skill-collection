@@ -26,7 +26,7 @@ finds the repo from your cwd and calls into two files that live in that repo:
 | in the repo | what | required |
 | --- | --- | --- |
 | `.herdr/setup.sh` | provisioning, run with CWD = the new worktree | no — skipped with a warning if absent |
-| `.herdr/sprawl.env` | `KEY=VALUE` dotenv sourced into both panes (`SPRAWL_AGENT_SECRET`) | no — and its absence means no sprawl pane at all |
+| `.herdr/env` | `KEY=VALUE` dotenv sourced into both panes (`SPRAWL_AGENT_SECRET` and/or `SPRAWL_PROJECT_KEY`) | no — and its absence means no sprawl pane at all |
 
 **`setup.sh` owns its own "already provisioned?" early-exit.** The launcher always
 calls it. This is the whole trick that keeps the launcher generic: the sentinel is the
@@ -39,13 +39,15 @@ at the top of `setup.sh` and the launcher needs no knobs at all:
 ```
 
 Onboarding a new repo is therefore: write `.herdr/setup.sh` (executable), and drop in a
-`.herdr/sprawl.env` if the repo tracks its work in sprawl. Nothing to copy, nothing to
-keep in sync.
+`.herdr/env` if the repo tracks its work in sprawl. Nothing to copy, nothing to keep in
+sync.
 
-**`sprawl.env` is the opt-in switch for the sprawl pane.** With it, the space splits
-top/bottom — agent on top, sprawl TUI in the bottom third. Without it, the space is
+**`.herdr/env` is the opt-in switch for the sprawl pane.** With it, the space splits
+top/bottom — agent on top, `sprawl tui` in the bottom third. Without it, the space is
 left unsplit and the agent gets the whole thing. Delete the file from a repo that
-doesn't use sprawl and its worktrees stop getting the pane.
+doesn't use sprawl and its worktrees stop getting the pane. The older name
+`.herdr/sprawl.env` still works — the launcher checks `env` first, then falls back —
+so repos can be renamed one at a time.
 
 ## Usage
 
@@ -55,7 +57,7 @@ wt [name] [prompt...] [--agent CMD] [--base REF] [--name NAME]
 
 One call = one worktree = one space = one agent — Herdr's native grain, so each agent
 gets its own sidebar row. Run it once per agent. It branches, provisions, splits the
-space (agent on top, `sprawl` TUI below), and starts the agent on your prompt.
+space (agent on top, `sprawl tui` below), and starts the agent on your prompt.
 
 Pass a prompt and the agent works in the background (the space is created unfocused).
 Omit it and the space takes focus with an empty agent session, ready to type into.
