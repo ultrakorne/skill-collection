@@ -49,8 +49,18 @@ Return findings via the structured output tool. If the code looks correct, retur
 // Codex native reviewer. With an instruction, use `adversarial-review`, which
 // accepts free-form focus text and infers scope from it. With no instruction,
 // use the plain working-tree `review`.
+//
+// The companion spawns `codex app-server` by PATH lookup and reads its stdout as
+// JSONL. Where `codex` is a mise-managed wrapper (e.g. omarchy's ~/.local/bin/codex,
+// which runs `mise use -g codex` first), the wrapper prints "mise ~/.config/...
+// tools: codex@x.y.z" on STDOUT (and may stall resolving `latest` over the
+// network) — that line is not JSON and kills the app-server client. Put the real
+// binary's directory ahead of it on PATH so spawn("codex") resolves to the actual
+// executable. No-op on machines without mise.
+const CODEX_PATH_FIX =
+  'CODEX_REAL="$(mise which codex 2>/dev/null)"; [ -x "$CODEX_REAL" ] && export PATH="$(dirname "$CODEX_REAL"):$PATH"'
 const CODEX_BASE =
-  'COMPANION="$(ls -d "$HOME"/.claude/plugins/cache/openai-codex/codex/*/ 2>/dev/null | sort -V | tail -1)scripts/codex-companion.mjs"'
+  `${CODEX_PATH_FIX}; COMPANION="$(ls -d "$HOME"/.claude/plugins/cache/openai-codex/codex/*/ 2>/dev/null | sort -V | tail -1)scripts/codex-companion.mjs"`
 const CODEX_COMMAND = INSTRUCTION
   ? `${CODEX_BASE}; node "$COMPANION" adversarial-review --wait ${shQuote(INSTRUCTION)}`
   : `${CODEX_BASE}; node "$COMPANION" review --wait --scope working-tree`
