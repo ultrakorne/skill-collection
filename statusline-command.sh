@@ -18,9 +18,8 @@ EOF
 if [ -z "$effort" ]; then
   effort=$(jq -r '.effortLevel // ""' "$HOME/.claude/settings.json" 2>/dev/null)
 fi
-if [ "$style" = "default" ] || [ -z "$style" ]; then
-  style="$effort"
-fi
+# show the effort level in brackets, not the output style
+style="$effort"
 
 # directory name only, not the full path
 if [ "$dir" = "$HOME" ]; then
