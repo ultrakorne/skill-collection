@@ -19,12 +19,18 @@ orchestration: use the **Workflow** tool — pointed at the bundled script — t
 ## The bundled workflow
 
 The workflow lives **inside this skill's own directory** at `scripts/multi-review.mjs`.
-Always run that bundled copy — do not look for a workflow in `~/.claude/workflows/`. Pass
-its absolute path to `Workflow`'s `scriptPath`. For a personal install this resolves to:
+Always run that bundled copy — do not look for a workflow in `~/.claude/workflows/`. For a
+personal install this resolves to:
 
 ```
 ~/.claude/skills/multi-review/scripts/multi-review.mjs
 ```
+
+**Pass it inline, never by path.** The `Workflow` tool only accepts a `scriptPath` inside
+the working directory (or a directory you have added), so a path under `~/.claude/skills/`
+is rejected with *"scriptPath must be a script path this tool returned, or a file you can
+already read"* — reading the file first does not help. Instead: `Read` the bundled file and
+pass its full contents verbatim as the `script` parameter. Do not copy it into the repo.
 
 ## Instruction (the optional argument)
 
@@ -51,11 +57,16 @@ git range or an object.
    resolve their own scope. (If the request is genuinely ambiguous, ask for clarification
    before launching.)
 
-2. **Run the workflow.** Pass the instruction as `args` only when one was given:
+2. **Run the workflow.** `Read` `~/.claude/skills/multi-review/scripts/multi-review.mjs`,
+   then pass its contents as `script` (not `scriptPath`), and the instruction as `args`
+   only when one was given:
 
    ```
-   Workflow({ scriptPath: "~/.claude/skills/multi-review/scripts/multi-review.mjs", args: "<instruction or omit>" })
+   Workflow({ script: "<full contents of multi-review.mjs>", args: "<instruction or omit>" })
    ```
+
+   The launch result names a persisted copy of the script under the session directory;
+   use *that* path with `scriptPath` + `resumeFromRunId` only when resuming the same run.
 
    It fans out every reviewer in `REVIEWERS` in parallel with fresh context, then has Opus
    dedup the findings, verify each against the real code, and write an issue-by-issue fix
