@@ -1,258 +1,195 @@
 # Documentation Templates
 
+Budgets and rules are in [SKILL.md](../SKILL.md). Every path in a template is a placeholder; cite only paths that exist.
+
 ## Master Index
 
-`docs/INDEX.md` — entry point for all project documentation.
+`docs/INDEX.md` — the entry point.
 
 ```markdown
 # {Project Name} Documentation
 
-<one paragraph description of the project: what it is, who it's for, core value proposition>
+<two sentences: what the project is and who it is for. The code is the source of truth; docs describe the present state at concept level.>
 
 ## Tech Stack
 
-- **Framework**: <e.g., Phoenix/Elixir, Next.js, Unity>
-- **Database**: <e.g., PostgreSQL, Redis> if relevant
-- **Hosting**: <e.g., Fly.io, Vercel, AWS> if relevant
-- **Other**: any relevant architectural or infrastructure notes
+- **Framework**: <e.g. Phoenix / Elixir>
+- **Database**: <e.g. PostgreSQL>
+- **Other**: <only what shapes the architecture>
 
 ## Features
 
 | Feature | Description |
 |---------|-------------|
-| [<feature-name>](features/feature-name/INDEX.md) | <brief one-line description> |
+| [<Feature>](features/feature-name/INDEX.md) | <one line> |
 
 ## Quick Links
 
-- [CONTEXT.md](CONTEXT.md) — Ubiquitous language (project-level domain terms)
-- [Testing](testing.md) *(if exists)*
-- [Architecture Overview](architecture/OVERVIEW.md) *(if exists)*
+- [CONTEXT.md](CONTEXT.md) — ubiquitous language
+- [Testing](testing.md) *(if it exists)*
 ```
 
 ---
 
 ## Feature Index
 
-`docs/features/{feature-name}/INDEX.md` — table of contents for a feature folder.
+`docs/features/{feature-name}/INDEX.md` — ≤ 12 lines.
 
 ```markdown
 # {Feature Name}
 
-<one paragraph summary: what this feature does and why it exists>
+<one paragraph: what the feature does and for whom.>
 
 ## Documents
 
 | Document | Purpose |
 |----------|---------|
-| [DESIGN.md](DESIGN.md) | Components, user flows, design decisions |
-| [TECHNICAL.md](TECHNICAL.md) | Architecture, source files, noteworthy behavior |
-| [CONTEXT.md](CONTEXT.md) | Feature-specific terms (only if this feature has local-only language) *(if exists)* |
-| [FLOW.mermaid](FLOW.mermaid) | <description of what the diagram shows> *(if exists)* |
-| [<topic>.md](<topic>.md) | <description of sub-component> *(if exists)* |
+| [DESIGN.md](DESIGN.md) | <what this feature's design page covers> |
+| [TECHNICAL.md](TECHNICAL.md) | <architecture, where things live, the non-obvious> |
+| [FLOW.mermaid](FLOW.mermaid) | <what the diagram shows> *(if it exists)* |
+| [<topic>.md](<topic>.md) | <sub-component> *(if it exists)* |
 ```
 
 ---
 
 ## Project Context
 
-`docs/CONTEXT.md` — the project's ubiquitous language. This file is named exactly `CONTEXT.md` — never `glossary.md` or any other name.
+`docs/CONTEXT.md` — the ubiquitous language. This exact filename.
 
 ```markdown
 # {Project Name} — Context
 
-<one or two sentences: what this file covers and why it exists.>
+The ubiquitous language used across {Project}. Definitions are one sentence — what a term *is*, not what it does. The canonical name is bolded; rejected synonyms sit under `_Avoid_`.
 
-## Language
+## <Area>
 
 **Order**:
 A confirmed customer request for goods or services.
-_Avoid_: Purchase, transaction
+_Avoid_: purchase, transaction
 
 **Invoice**:
 A request for payment sent to a customer after delivery.
-_Avoid_: Bill, payment request
-
-**Customer**:
-A person or organization that places orders.
-_Avoid_: Client, buyer, account
+_Avoid_: bill, payment request
 
 ## Relationships
 
-- An **Order** produces one or more **Invoices**
-- An **Invoice** belongs to exactly one **Customer**
-
-## Example dialogue
-
-> **Dev:** "When a **Customer** places an **Order**, do we create the **Invoice** immediately?"
-> **Domain expert:** "No — an **Invoice** is only generated once a **Fulfillment** is confirmed."
+- An **Order** produces one or more **Invoices**.
+- An **Invoice** belongs to exactly one **Customer**.
 
 ## Flagged ambiguities
 
-- "account" was used to mean both **Customer** and **User** — resolved: these are distinct concepts.
+- <a word used for two concepts, and how it was resolved — only while migrating>
 ```
+
+Group terms under area headings once there are more than a dozen. Domain terms only.
 
 ---
 
 ## Feature Context
 
-`docs/features/{feature-name}/CONTEXT.md` — **optional.** Only create when a feature has terms that are strictly local to it. Most terms belong in the project-level `docs/CONTEXT.md`.
-
-```markdown
-# {Feature Name} — Context
-
-<one or two sentences: what this feature-local context covers and why these terms didn't go into the project-level CONTEXT.md.>
-
-## Language
-
-**<Term>**:
-<one-sentence definition>
-_Avoid_: <aliases or near-synonyms not to use>
-
-## Relationships
-
-- ...
-
-## Example dialogue
-
-> ...
-
-## Flagged ambiguities
-
-- ...
-```
-
-If a term here is also used outside the feature, **promote it to `docs/CONTEXT.md`** and remove it here.
+`docs/features/{feature-name}/CONTEXT.md` — optional; only for terms that never leave the feature. Same shape as the project file. A term that appears outside the feature moves to `docs/CONTEXT.md`.
 
 ---
 
-## Design Specification
+## Design
 
-`docs/features/{feature-name}/DESIGN.md` — the what and why (UX-level, not implementation).
+`docs/features/{feature-name}/DESIGN.md` — 30–70 lines. The functional overview in user-level vocabulary; no source files or code identifiers beyond routes and header names.
 
 ```markdown
 # {Feature Name} — Design
 
 ## Overview
 
-<what does this feature do? one paragraph>
+<one paragraph: what it does, for whom, and the one idea that shapes it.>
 
-## Components
+## Surface
 
-### <Component Name>
+- **<Element>** — <what the user sees and can do with it.>
 
-<description of this component and its responsibility — visible UX, not code structure>
+## Flows
 
-## User Flows
+- **<Flow>** — <what happens, in a sentence or two.>
 
-### <Flow Name>
+## Decisions
 
-<describe the main flow: screens, user interactions, what happens step by step>
-
-## Design Decisions
-
-*Document key decisions as they are made — the "why", not the "how".*
+- **<Decision>** — <the reason, one or two sentences.>
 ```
+
+Sections are a guide: an API feature swaps Surface for a headers table, an endpoint table and an error contract; a lifecycle feature adds a Lifecycle section and a state diagram.
 
 ---
 
-## Technical Specification
+## Technical
 
-`docs/features/{feature-name}/TECHNICAL.md` — the how. Point at the code by path, don't paraphrase or duplicate it, and never cite line numbers.
+`docs/features/{feature-name}/TECHNICAL.md` — 40–90 lines. Point at the code by path; cache only what the code cannot confess.
 
 ```markdown
 # {Feature Name} — Technical
 
 ## Architecture
 
-<one short paragraph: how the feature is wired end to end — which layer handles what,
-how data flows from client to persistence (or vice versa). Call out scope/ownership
-enforcement if relevant.>
+<one or two paragraphs: the layers involved, how a request or event flows through them, and where ownership and permission are enforced.>
 
-## Source Files
+## Where things live
 
 | File | Role |
 |------|------|
-| `lib/my_app/foo.ex` | <one-line role — e.g. "context: CRUD + scope-filtered queries">|
-| `lib/my_app_web/live/foo_live.ex` | <one-line role — e.g. "LiveView: mount + events">|
-| `assets/js/hooks/foo_hook.js` | <one-line role — e.g. "client hook: drag + optimistic UI">|
+| `lib/my_app/foo.ex` | <one line> |
+| `lib/my_app_web/live/foo_live.ex` | <one line> |
+| `assets/js/hooks/foo_hook.js` | <one line> |
 
-*One line per file. Reference files by path only — never by line number. Do not list the functions inside each file.*
+## Noteworthy
 
-## Data Model
+### <A contract or invariant>
 
-<Describe the persisted shape in prose ONLY when it's non-obvious or load-bearing:
-which entities exist, how they relate, and any unusual indexes, constraints, or nullable
-semantics that matter. Do NOT paste the schema or migration source — point at the file
-that defines it. The code is authoritative; don't keep a second copy here.>
-
-## Noteworthy Behavior
-
-<The point of this doc. Bullet or short-section the things a reader CAN'T learn by
-reading the code: performance paths, race-condition handling, cascade algorithms,
-optimistic-UI contracts, migration quirks, "why does this handler deliberately skip
-re-streaming", etc. Keep each item to 1-4 sentences. If there's nothing non-obvious,
-this section is legitimately short or absent.>
-
-## Dependencies
-
-- <internal module or external service this feature depends on — short bullet list>
+<one to four sentences: the rule and the reason. Ordering invariants, race outcomes, optimistic-UI contracts, security gates, constants mirrored across layers, deliberate choices a reader would otherwise "fix".>
 ```
+
+A data-model paragraph goes under Architecture only when a constraint, index or nullable semantic is load-bearing; it points at the schema file rather than repeating it. When nothing is non-obvious, Noteworthy is short or absent.
 
 ---
 
 ## Flow Diagram
 
-`docs/features/{feature-name}/FLOW.mermaid` — visual representation of flows.
+`docs/features/{feature-name}/FLOW.mermaid` — one diagram at protocol level: participants and messages, or states and transitions. Internal module and function names stay out.
 
 ```mermaid
 sequenceDiagram
     participant U as User
     participant C as Client
     participant S as Server
-    participant D as Database
 
     U->>C: <action>
     C->>S: <request>
-    S->>D: <query>
-    D-->>S: <result>
     S-->>C: <response>
-    C-->>U: <feedback>
 ```
-
-Alternative for state machines:
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Idle
-    Idle --> Processing: start
-    Processing --> Success: complete
-    Processing --> Failed: error
-    Success --> [*]
-    Failed --> Idle: retry
+    [*] --> Visible
+    Visible --> Archived: archive
+    Archived --> Visible: restore
+    Archived --> [*]: delete
 ```
 
 ---
 
-## Sub-Component Document
+## Sub-component
 
-`docs/features/{feature-name}/{topic}.md` — isolated documentation for complex sub-systems. Use when a topic clutters TECHNICAL.md and is only relevant for specific tasks.
+`docs/features/{feature-name}/{topic}.md` — for a sub-system that would push TECHNICAL past budget and only matters for specific tasks.
 
 ```markdown
 # {Feature Name} — {Topic}
 
 ## Overview
 
-<what is this sub-component and why is it documented separately?>
+<what it is and why it is documented apart.>
 
-## Design
+## Noteworthy
 
-<design decisions specific to this sub-component>
-
-## Technical Details
-
-<implementation specifics — same rules as TECHNICAL.md: point at files, don't paraphrase>
+<same rules as TECHNICAL: point at files, cache the non-obvious.>
 
 ## Integration
 
-<how this sub-component connects to the parent feature>
+<how it connects to the parent feature.>
 ```

@@ -5,6 +5,7 @@ The generic half of the Herdr worktree cockpit — one launcher, shared by every
 | file | what |
 | --- | --- |
 | `new-worktree.sh` | start a task: worktree + space + agent. Installed as `wt`. |
+| `elixir/` `go/` `npm_js/` `swift/` | reference `setup.sh` per stack — copy one into a repo's `.herdr/` and adapt. Not read by the launcher. |
 
 Install — run it from this directory, wherever you cloned the repo:
 
@@ -146,4 +147,5 @@ accumulate branches until you sweep them.
 
 ## Wired repos
 
-`idle_collect` (Vite/npm) · `doodlebox` (Phoenix/Elixir) · `2am-swift` (Swift/Xcode)
+`idle_collect` (Vite/npm) · `doodlebox` (Phoenix/Elixir) · `2am-swift` (Swift/Xcode) ·
+`sprawl` (Phoenix/Elixir) · `agentic_game_dev` (Phoenix/Elixir) · `sbstudio_cli` (Go)
