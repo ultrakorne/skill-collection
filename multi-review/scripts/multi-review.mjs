@@ -46,24 +46,37 @@ Do NOT report style/formatting nits unless they cause a real bug. Be concrete: c
 
 Return findings via the structured output tool. If the code looks correct, return an empty findings array with a short note.`
 
-// Codex native reviewer. With an instruction, use `adversarial-review`, which
-// accepts free-form focus text and infers scope from it. With no instruction,
-// use the plain working-tree `review`.
+// Codex reviewer — the codex CLI's own non-interactive reviewer (`codex review`).
+// `-c` overrides pin the model and reasoning effort for this run only, leaving the
+// user's ~/.codex/config.toml alone, and force a read-only never-ask run so the
+// reviewer can neither block on an approval prompt nor touch the tree.
 //
-// The companion spawns `codex app-server` by PATH lookup and reads its stdout as
-// JSONL. Where `codex` is a mise-managed wrapper (e.g. omarchy's ~/.local/bin/codex,
-// which runs `mise use -g codex` first), the wrapper prints "mise ~/.config/...
-// tools: codex@x.y.z" on STDOUT (and may stall resolving `latest` over the
-// network) — that line is not JSON and kills the app-server client. Put the real
-// binary's directory ahead of it on PATH so spawn("codex") resolves to the actual
-// executable. No-op on machines without mise.
+// With an instruction, it is passed as the review PROMPT (custom review
+// instructions) and Codex infers the scope from it; with none, `--uncommitted`
+// scopes the built-in reviewer to the working tree (staged + unstaged + untracked).
+// The two are mutually exclusive: the CLI rejects `--uncommitted` alongside a
+// PROMPT with "the argument '--uncommitted' cannot be used with '[PROMPT]'".
+//
+// stdin is closed: `codex review` otherwise reads a prompt from stdin and hangs.
+//
+// PATH fix: where `codex` is a mise-managed wrapper (e.g. omarchy's
+// ~/.local/bin/codex, which runs `mise use -g codex` first), the wrapper prints a
+// "mise ... tools: codex@x.y.z" banner into the review output and may stall
+// resolving `latest` over the network. Put the real binary's directory ahead of it
+// on PATH so `codex` resolves to the actual executable. No-op without mise.
+const CODEX_MODEL = 'gpt-6-astra'
+const CODEX_EFFORT = 'medium'
 const CODEX_PATH_FIX =
   'CODEX_REAL="$(mise which codex 2>/dev/null)"; [ -x "$CODEX_REAL" ] && export PATH="$(dirname "$CODEX_REAL"):$PATH"'
 const CODEX_BASE =
-  `${CODEX_PATH_FIX}; COMPANION="$(ls -d "$HOME"/.claude/plugins/cache/openai-codex/codex/*/ 2>/dev/null | sort -V | tail -1)scripts/codex-companion.mjs"`
+  `${CODEX_PATH_FIX}; codex review` +
+  ` -c 'model="${CODEX_MODEL}"'` +
+  ` -c 'model_reasoning_effort="${CODEX_EFFORT}"'` +
+  ` -c 'approval_policy="never"'` +
+  ` -c 'sandbox_mode="read-only"'`
 const CODEX_COMMAND = INSTRUCTION
-  ? `${CODEX_BASE}; node "$COMPANION" adversarial-review --wait ${shQuote(INSTRUCTION)}`
-  : `${CODEX_BASE}; node "$COMPANION" review --wait --scope working-tree`
+  ? `${CODEX_BASE} ${shQuote(INSTRUCTION)} </dev/null`
+  : `${CODEX_BASE} --uncommitted </dev/null`
 
 const REVIEWERS = [
   {

@@ -89,5 +89,8 @@ git range or an object.
 - **Add a reviewer**: append one entry to the `REVIEWERS` array in
   `scripts/multi-review.mjs`.
 - **Instruction handling** is the `INSTRUCTION` const at the top of that file — Claude gets
-  it in its prompt; Codex gets it via `adversarial-review <focus>` (which accepts free-form
-  text). No instruction → plain working-tree `review`.
+  it in its prompt; Codex gets it as the PROMPT argument to `codex review` (free-form
+  custom review instructions, from which Codex infers the scope). No instruction →
+  `codex review --uncommitted`, the built-in reviewer on the working tree.
+- **Codex model/effort** are the `CODEX_MODEL` / `CODEX_EFFORT` consts, applied as per-run
+  `-c` overrides so the user's `~/.codex/config.toml` is left untouched.
