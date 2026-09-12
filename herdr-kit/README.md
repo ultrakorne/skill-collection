@@ -131,6 +131,7 @@ worktree was launched with, and `wt` prints the path when it finishes.
 | `--base REF`, `-b` | `HEAD` | ref to branch from |
 | `--name NAME`, `-n` | — | force the name, anywhere in the args |
 | `--` | — | everything after it is prompt, never a name |
+| `--help`, `-h` | — | print a brief reference of args, flags and repo files |
 
 Flags go anywhere. Re-running with an existing name reuses that worktree instead of
 failing.

@@ -35,6 +35,7 @@
 #     --base REF,  -b REF   ref to branch from (default: HEAD). A local branch is first
 #                           fast-forwarded from its upstream; if that fails, wt aborts.
 #     --name NAME, -n NAME  name the worktree explicitly, wherever it sits in the args.
+#     --help, -h            print a brief reference and exit.
 #
 #   e.g.  wt shop-ui "add the checkout button"
 #         wt "add the checkout button"            # auto-named, agent renames it
@@ -86,6 +87,53 @@ set -euo pipefail
 
 USAGE="usage: wt [name] [prompt...] [--agent CMD] [--base REF] [--name NAME]"
 
+# Plain heredoc in a function, NOT $(cat <<EOF) — see the bash 3.2 note in step 2.
+print_help() {
+  cat <<'EOF'
+usage: wt [name] [prompt...] [options]
+
+Create a Herdr worktree + space, provision it, and launch a coding agent in it.
+Run from anywhere inside a git repo, in a Herdr session.
+
+arguments:
+  name        branch + worktree + space label. Taken only if the first bare arg is
+              one token of [A-Za-z0-9._/-]. Omitted: auto-named wip-<random>, and
+              the agent renames the branch + space itself once the task is clear.
+  prompt...   initial prompt: the remaining bare args, joined with spaces.
+              Given: agent starts on it, space opens in the background.
+              Omitted: empty agent session, space takes focus.
+
+options:
+  -a, --agent CMD   agent to launch: claude (default), codex, opencode
+  -b, --base REF    ref to branch from (default: HEAD). A local branch is
+                    fast-forwarded from its upstream first; wt aborts if that fails.
+  -n, --name NAME   set the name explicitly, from anywhere in the args
+  --                everything after is prompt, never a name
+  -h, --help        show this help
+  Options go anywhere; --flag=value also works.
+
+repo files (optional, in the main checkout):
+  .herdr/setup.sh   provisioning, run with CWD = the new worktree
+  .herdr/env        KEY=VALUE env sourced into the panes; its presence adds a
+                    bottom pane running sprawl tui (.herdr/sprawl.env also accepted)
+
+examples:
+  wt "add the checkout button"                     auto-named
+  wt shop-ui "add the checkout button"             named
+  wt shop-ui                                       empty interactive session
+  wt shop-ui -b main -a codex "rework the header"
+  wt -- do task x                                  force all words into the prompt
+
+notes:
+  An existing name reuses that worktree instead of failing.
+  Prompts are saved to <git-common-dir>/wt-prompts/<name>.txt.
+
+clean up:
+  herdr worktree remove --workspace <id> --force   worktree + space
+  git branch -D <name>                             the branch it leaves behind
+EOF
+}
+
 # Quote a string as a single token for the pane's shell. The C locale is load-bearing:
 # in a UTF-8 locale, bash 3.2's %q leaves the LEAD byte of a multi-byte char raw and
 # octal-escapes only the continuation bytes (em-dash -> 0xE2 then a literal \200\224),
@@ -114,6 +162,7 @@ NAME_SLOT_OPEN=1   # closed by --name, by --, or once any bare word is taken as 
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
+    --help|-h)  print_help; exit 0 ;;
     --agent|-a) AGENT="${2:?--agent needs a value}"; shift 2 ;;
     --base|-b)  BASE="${2:?--base needs a value}";   shift 2 ;;
     --name|-n)  NAME="${2:?--name needs a value}"; NAME_SLOT_OPEN=0; shift 2 ;;
@@ -137,7 +186,7 @@ done
 PROMPT=""
 [ "${#PROMPT_WORDS[@]}" -gt 0 ] && PROMPT="${PROMPT_WORDS[*]}"
 
-[ -n "$NAME" ] || [ -n "$PROMPT" ] || { echo "$USAGE" >&2; exit 1; }
+[ -n "$NAME" ] || [ -n "$PROMPT" ] || { echo "$USAGE" >&2; echo "run 'wt --help' for details." >&2; exit 1; }
 
 # Resolve the repo from the CALLER's cwd, never from $0: this script lives on PATH,
 # outside any repo, so dirname $0 would point at ~/.local/bin. `worktree list` run
