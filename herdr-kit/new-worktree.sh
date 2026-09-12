@@ -32,7 +32,8 @@
 #                `wt fix "add a button"` are equivalent.
 #     --agent CMD, -a CMD   agent launched in the pane (default: claude; also codex,
 #                           opencode). Put it anywhere.
-#     --base REF,  -b REF   ref to branch from (default: HEAD).
+#     --base REF,  -b REF   ref to branch from (default: HEAD). A local branch is first
+#                           fast-forwarded from its upstream; if that fails, wt aborts.
 #     --name NAME, -n NAME  name the worktree explicitly, wherever it sits in the args.
 #
 #   e.g.  wt shop-ui "add the checkout button"
@@ -190,6 +191,38 @@ fi
 # runs on its own — so stay put in the pane you issued the command from and let it
 # work in the background. Prompt present → --no-focus; absent → --focus.
 FOCUS_FLAG="--focus"; [ -n "$PROMPT" ] && FOCUS_FLAG="--no-focus"
+
+# 0) Branch from an up-to-date base. The worktree forks from a LOCAL ref, so a base
+#    branch that's behind its upstream hands the agent stale code. Bring it up to date
+#    first, fast-forward only: diverged history, local changes the pull would overwrite,
+#    no network — any failure aborts HERE, before Herdr creates anything, rather than
+#    quietly branching from old code. Only a local branch with an upstream is pulled; a
+#    detached HEAD, tag, SHA or remote-tracking ref is used exactly as given.
+#    The base is usually the main checkout's own branch, so that's a real `git pull` in
+#    $MAIN (--no-rebase so a pull.rebase config can't rebase your checkout instead). Any
+#    other local branch isn't checked out there, so `fetch src:dst` fast-forwards it in
+#    place — same ff-only guarantee, working tree untouched. Skipped when reusing an
+#    existing worktree: it already has its branch.
+if [ ! -e "$WT" ]; then
+  BASE_REF="$(git -C "$MAIN" rev-parse --symbolic-full-name "$BASE" 2>/dev/null || true)"
+  case "$BASE_REF" in
+    refs/heads/*)
+      BASE_BRANCH="${BASE_REF#refs/heads/}"
+      UP_REMOTE="$(git -C "$MAIN" for-each-ref --format='%(upstream:remotename)' "$BASE_REF")"
+      UP_MERGE="$(git -C "$MAIN" for-each-ref --format='%(upstream:remoteref)' "$BASE_REF")"
+      PULL_FAILED="wt: could not fast-forward '$BASE_BRANCH' from $UP_REMOTE (see git's error above) — nothing created. Sort it out in $MAIN, then re-run."
+      if [ -z "$UP_REMOTE" ]; then
+        echo "wt: '$BASE_BRANCH' has no upstream — branching from it as-is." >&2
+      elif [ "$BASE_REF" = "$(git -C "$MAIN" symbolic-ref -q HEAD || true)" ]; then
+        echo "wt: pulling '$BASE_BRANCH' in $MAIN …"
+        git -C "$MAIN" pull --ff-only --no-rebase || { echo "$PULL_FAILED" >&2; exit 1; }
+      else
+        echo "wt: updating '$BASE_BRANCH' from $UP_REMOTE …"
+        git -C "$MAIN" fetch "$UP_REMOTE" "$UP_MERGE:$BASE_REF" || { echo "$PULL_FAILED" >&2; exit 1; }
+      fi
+      ;;
+  esac
+fi
 
 # 1) Herdr owns lifecycle: worktree + its own workspace (space) + focused pane.
 #    Take the NEW pane's id from the create response — NOT `pane current`, which
