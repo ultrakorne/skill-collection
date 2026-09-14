@@ -46,7 +46,7 @@ Do NOT report style/formatting nits unless they cause a real bug. Be concrete: c
 
 Return findings via the structured output tool. If the code looks correct, return an empty findings array with a short note.`
 
-// Codex reviewer — the codex CLI's own non-interactive reviewer (`codex review`).
+// Codex reviewer — the codex CLI's own non-interactive reviewer (`codex exec review`).
 // `-c` overrides pin the model and reasoning effort for this run only, leaving the
 // user's ~/.codex/config.toml alone, and force a read-only never-ask run so the
 // reviewer can neither block on an approval prompt nor touch the tree.
@@ -57,7 +57,12 @@ Return findings via the structured output tool. If the code looks correct, retur
 // The two are mutually exclusive: the CLI rejects `--uncommitted` alongside a
 // PROMPT with "the argument '--uncommitted' cannot be used with '[PROMPT]'".
 //
-// stdin is closed: `codex review` otherwise reads a prompt from stdin and hangs.
+// Only the final review is relayed. Codex's console output is its whole session
+// log — every command it ran with full output, 500KB+ on a large PR — which no
+// runner can hand back verbatim. `codex exec review -o` writes just the last
+// message to a file; the log is kept only to explain a failed run.
+//
+// stdin is closed: codex otherwise reads a prompt from stdin and hangs.
 //
 // PATH fix: where `codex` is a mise-managed wrapper (e.g. omarchy's
 // ~/.local/bin/codex, which runs `mise use -g codex` first), the wrapper prints a
@@ -69,14 +74,20 @@ const CODEX_EFFORT = 'medium'
 const CODEX_PATH_FIX =
   'CODEX_REAL="$(mise which codex 2>/dev/null)"; [ -x "$CODEX_REAL" ] && export PATH="$(dirname "$CODEX_REAL"):$PATH"'
 const CODEX_BASE =
-  `${CODEX_PATH_FIX}; codex review` +
+  `${CODEX_PATH_FIX}; CODEX_OUT="$(mktemp)"; codex exec review` +
   ` -c 'model="${CODEX_MODEL}"'` +
   ` -c 'model_reasoning_effort="${CODEX_EFFORT}"'` +
   ` -c 'approval_policy="never"'` +
-  ` -c 'sandbox_mode="read-only"'`
+  ` -c 'sandbox_mode="read-only"'` +
+  ` -o "$CODEX_OUT"`
+const CODEX_RELAY =
+  ` </dev/null >"$CODEX_OUT.log" 2>&1; CODEX_RC=$?;` +
+  ` if [ -s "$CODEX_OUT" ]; then cat "$CODEX_OUT";` +
+  ` else echo "codex exec review produced no review (exit $CODEX_RC). Last log lines:"; tail -n 40 "$CODEX_OUT.log"; fi;` +
+  ` rm -f "$CODEX_OUT" "$CODEX_OUT.log"`
 const CODEX_COMMAND = INSTRUCTION
-  ? `${CODEX_BASE} ${shQuote(INSTRUCTION)} </dev/null`
-  : `${CODEX_BASE} --uncommitted </dev/null`
+  ? `${CODEX_BASE} ${shQuote(INSTRUCTION)}${CODEX_RELAY}`
+  : `${CODEX_BASE} --uncommitted${CODEX_RELAY}`
 
 const REVIEWERS = [
   {
@@ -145,7 +156,7 @@ const PLAN_SCHEMA = {
 }
 
 function bashRunnerPrompt(command) {
-  return `You are a command runner. Execute EXACTLY the following shell command from the current working directory, using a Bash timeout of 600000 ms (it is a Codex review and may take several minutes). Return its complete stdout as your final message, VERBATIM — no summary, no commentary, no added markdown fences, no preamble. If the command exits non-zero, return its stderr verbatim instead.
+  return `You are a command runner. Execute EXACTLY the following shell command ONCE from the current working directory, using a Bash timeout of 600000 ms (it is a Codex review and may take several minutes). Return its complete output as your final message, VERBATIM — no summary, no commentary, no added markdown fences, no preamble. Use no other tools: do not re-read, split or send the output anywhere, and do not run the review a second time.
 
 COMMAND:
 ${command}`
@@ -163,7 +174,7 @@ const reviews = await parallel(
       const out = await agent(bashRunnerPrompt(r.command), {
         label: `review:${r.name}`,
         phase: 'Review',
-        model: 'haiku',
+        model: 'sonnet',
       })
       return { name: r.name, kind: 'bash', output: out }
     }

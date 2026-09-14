@@ -89,8 +89,11 @@ git range or an object.
 - **Add a reviewer**: append one entry to the `REVIEWERS` array in
   `scripts/multi-review.mjs`.
 - **Instruction handling** is the `INSTRUCTION` const at the top of that file — Claude gets
-  it in its prompt; Codex gets it as the PROMPT argument to `codex review` (free-form
+  it in its prompt; Codex gets it as the PROMPT argument to `codex exec review` (free-form
   custom review instructions, from which Codex infers the scope). No instruction →
-  `codex review --uncommitted`, the built-in reviewer on the working tree.
+  `codex exec review --uncommitted`, the built-in reviewer on the working tree.
 - **Codex model/effort** are the `CODEX_MODEL` / `CODEX_EFFORT` consts, applied as per-run
   `-c` overrides so the user's `~/.codex/config.toml` is left untouched.
+- **Codex output**: only the final review is relayed (`-o` to a temp file). Its console
+  output is the full session log and is kept only to explain a run that produced no review.
+  A Sonnet runner executes the command and returns that text verbatim.
