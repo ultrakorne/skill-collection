@@ -70,7 +70,7 @@ Return findings via the structured output tool. If the code looks correct, retur
 // resolving `latest` over the network. Put the real binary's directory ahead of it
 // on PATH so `codex` resolves to the actual executable. No-op without mise.
 const CODEX_MODEL = 'gpt-6-astra'
-const CODEX_EFFORT = 'medium'
+const CODEX_EFFORT = 'high'
 const CODEX_PATH_FIX =
   'CODEX_REAL="$(mise which codex 2>/dev/null)"; [ -x "$CODEX_REAL" ] && export PATH="$(dirname "$CODEX_REAL"):$PATH"'
 const CODEX_BASE =
