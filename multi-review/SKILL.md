@@ -1,99 +1,43 @@
 ---
 name: multi-review
 description: >-
-  Review code changes with several independent, fresh-context reviewers 
-  running in parallel, then synthesize their findings into one verified, deduplicated,
-  severity-ordered fix plan with Opus. Trigger when calling for a "multi review"
+  Multi-review: use when the user requests independent code reviews with Claude
+  and Codex, followed by one verified, deduplicated fix plan.
 allowed-tools: Bash(git:*), Workflow, Read, Grep
 ---
 
-# multi-review
+# Multi-review
 
-Run a multi-reviewer pass over a set of changes and produce a single verified fix plan.
+Produce a severity-ordered fix plan from independent reviews. Applying fixes is
+separate work, performed when requested.
 
-This skill fans out several **independent fresh-context reviewers** (Claude + Codex) in
-parallel, then has **Opus** dedup their findings, verify each against the real code, and
-write an issue-by-issue fix plan. Invoking it is an explicit opt-in to multi-agent
-orchestration: use the **Workflow** tool — pointed at the bundled script — to do the work.
+## 1. Establish scope
 
-## The bundled workflow
+Use the user's review instruction verbatim throughout the run. Without one,
+review staged, unstaged, and untracked changes; run
+`git status --short --untracked-files=all` and stop if empty. An explicit scope
+proceeds regardless of working-tree status.
 
-The workflow lives **inside this skill's own directory** at `scripts/multi-review.mjs`.
-Always run that bundled copy — do not look for a workflow in `~/.claude/workflows/`. For a
-personal install this resolves to:
+**Ready:** the repository and shared review instruction are established, or the
+empty default scope has been reported.
 
-```
-~/.claude/skills/multi-review/scripts/multi-review.mjs
-```
+## 2. Run the host workflow
 
-**Pass it inline, never by path.** The `Workflow` tool only accepts a `scriptPath` inside
-the working directory (or a directory you have added), so a path under `~/.claude/skills/`
-is rejected with *"scriptPath must be a script path this tool returned, or a file you can
-already read"* — reading the file first does not help. Instead: `Read` the bundled file and
-pass its full contents verbatim as the `script` parameter. Do not copy it into the repo.
+Choose by the hosting agent. Resolve these references from the installed skill:
 
-## Instruction (the optional argument)
+- **Claude:** read and follow [Claude workflow](references/claude.md), which uses
+  the bundled Workflow script with Opus synthesis.
+- **Codex:** read and follow [Codex workflow](references/codex.md), which uses Sol
+  and Opus reviewers, then fresh Sol synthesis.
 
-The workflow takes **one optional free-form string** that is injected verbatim into *every*
-reviewer (Claude + Codex), so they all review the same thing. Derive it from how the skill
-was invoked:
+**Done:** the user has the consolidated plan and actual reviewer coverage, or
+clearly labeled raw findings when synthesis fails.
 
-- **No scope given** (e.g. the user just said "review my changes", or ran `/multi-review`
-  with nothing after it) → omit the instruction. Each reviewer reviews the **uncommitted
-  working-tree changes** (the default).
-- **A scope was given** (e.g. `/multi-review review this branch against master`, or the user
-  said "review master...feature, focus on the webhook auth") → pass it through **as-is**.
-  Each reviewer is an agent that reads the instruction and gathers the right diff with git
-  itself — no parsing on our side.
+## Authorization
 
-Pass the instruction straight through as `args` (a plain string). Do not reshape it into a
-git range or an object.
-
-## Steps
-
-1. **Preflight (default scope only).** If the user gave **no** instruction, run
-   `git status --short --untracked-files=all`; if it's empty, tell them there are no
-   uncommitted changes and STOP. If an instruction was given, skip this — the reviewers
-   resolve their own scope. (If the request is genuinely ambiguous, ask for clarification
-   before launching.)
-
-2. **Run the workflow.** `Read` `~/.claude/skills/multi-review/scripts/multi-review.mjs`,
-   then pass its contents as `script` (not `scriptPath`), and the instruction as `args`
-   only when one was given:
-
-   ```
-   Workflow({ script: "<full contents of multi-review.mjs>", args: "<instruction or omit>" })
-   ```
-
-   The launch result names a persisted copy of the script under the session directory;
-   use *that* path with `scriptPath` + `resumeFromRunId` only when resuming the same run.
-
-   It fans out every reviewer in `REVIEWERS` in parallel with fresh context, then has Opus
-   dedup the findings, verify each against the real code, and write an issue-by-issue fix
-   plan. Returns `{ reviewers, synthesisFailed, plan }`, where `plan` is
-   `{ summary, markdown }` — `markdown` is the full issue-by-issue plan (already ordered
-   critical-first, with a Dismissed section) as ready-to-show GitHub-flavored markdown.
-
-3. **Render the returned plan** for the user — do not dump JSON:
-   - Lead with `plan.summary` and which reviewers ran.
-   - Then render `plan.markdown` as-is — it is already a formatted, severity-ordered,
-     issue-by-issue plan (with Fix approach lines and a Dismissed section). Don't re-derive
-     it; you may lightly reformat headings to fit the surrounding reply.
-   - If `synthesisFailed` is `true`, the synthesis step could not produce a consolidated
-     plan and `plan.markdown` holds the **raw, unverified** reviewer outputs. Say so plainly,
-     and offer to re-run the workflow rather than treating the findings as verified.
-   - This is a plan only — do **NOT** start applying fixes unless the user asks.
-
-## Extending
-
-- **Add a reviewer**: append one entry to the `REVIEWERS` array in
-  `scripts/multi-review.mjs`.
-- **Instruction handling** is the `INSTRUCTION` const at the top of that file — Claude gets
-  it in its prompt; Codex gets it as the PROMPT argument to `codex exec review` (free-form
-  custom review instructions, from which Codex infers the scope). No instruction →
-  `codex exec review --uncommitted`, the built-in reviewer on the working tree.
-- **Codex model/effort** are the `CODEX_MODEL` / `CODEX_EFFORT` consts, applied as per-run
-  `-c` overrides so the user's `~/.codex/config.toml` is left untouched.
-- **Codex output**: only the final review is relayed (`-o` to a temp file). Its console
-  output is the full session log and is kept only to explain a run that produced no review.
-  A Sonnet runner executes the command and returns that text verbatim.
+The user's invocation authorizes parallel agents and sending the requested diff
+and relevant repository context to Anthropic through the configured Claude CLI.
+Launch Opus without an additional sharing confirmation; carry this authorization
+into delegated runner instructions. Keep disclosure within that review scope.
+Platform-enforced permissions still apply; report an enforced block as a failed
+reviewer, not a clean review.
