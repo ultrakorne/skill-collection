@@ -1,25 +1,35 @@
-# How to install
+# skill-collection
 
-Install skills with
+Agent skills for Claude Code, Codex, Cursor, OpenCode and any other agent that reads `.agents/skills`.
 
-`gh skill install gihub/skill-collection` for selecting or just pass the name of the skill
+## Skills
 
-or
+- `project-documentation` — maintain `docs/` as lean, present-state project documentation (index, context, per-feature docs, ADRs)
+- `grill-with-docs` — stress-test a plan against the project's domain language and documented decisions
+- `improve-codebase-architecture` — find deepening and refactoring opportunities, informed by `CONTEXT.md` and `docs/adr/`
+- `multi-review` — run several independent reviewers in parallel and merge their findings into one verified, deduplicated fix plan
+- `orchestrator` — orchestrator mode: delegate every repo change to a spawned Herdr worktree agent
 
-script to install skill to claude code and opencode
-run `./install-skill.sh project-documentation` or manually copy skill based on your tools
+## Install with skillm
 
-## project-documentation usage
+[skillm](https://github.com/ultrakorne/skillm) installs one canonical copy into `.agents/skills` and symlinks it into every agent you enable.
 
-Ask your agent. Implement a feature and then just ask to document
+```sh
+curl -fsSL https://raw.githubusercontent.com/ultrakorne/skillm/master/install.sh | sh
+```
 
-<img width="550" height="390" alt="image" src="https://github.com/user-attachments/assets/8fa5331c-88ee-4a07-afee-54e8888f9ab1" />
+```sh
+skillm install ultrakorne/skill-collection --global     # pick skills, install for your user
+skillm install ultrakorne/skill-collection --local      # or install into the current project (committable)
+```
 
-## Doc structure
+## Install with npx skills
 
-all docs are going to be store in docs/
+Vercel's [`skills`](https://github.com/vercel-labs/skills) CLI uses the same layout and `skills-lock.json`, so both tools can manage the same project.
 
-explore the structure with `tree docs` after the first doc is created
+```sh
+npx skills add ultrakorne/skill-collection                              # pick skills, install into the project
+```
 
 ## Attribution
 
