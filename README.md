@@ -8,7 +8,6 @@ Agent skills for Claude Code, Codex, Cursor, OpenCode and any other agent that r
 - `grill-with-docs` — stress-test a plan against the project's domain language and documented decisions
 - `improve-codebase-architecture` — find deepening and refactoring opportunities, informed by `CONTEXT.md` and `docs/adr/`
 - `multi-review` — run several independent reviewers in parallel and merge their findings into one verified, deduplicated fix plan
-- `orchestrator` — orchestrator mode: delegate every repo change to a spawned Herdr worktree agent
 
 ## Install with skillm
 
